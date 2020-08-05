@@ -23,7 +23,7 @@ def getDualImagingAnalysis(eng, filepath,
             save_filepath = filepath.replace('.spe', '.jpeg')
             im.save(save_filepath)
 
-        flatten_dict = {'analysis': {}, 'settings' = {}}
+        flatten_dict = {'analysis': {}, 'settings' : {}}
         for key in matlab_dict['K_analysis']:
             flatten_dict['analysis']['K_' +
                                      key] = matlab_dict['K_analysis'][key]
