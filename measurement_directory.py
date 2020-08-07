@@ -60,6 +60,3 @@ def todays_measurements():
     month_date_dir = r'{month}\{date}\\'.format(
         month=month, date=date)
     return os.listdir(month_date_dir)
-
-
-print(todays_measurements())

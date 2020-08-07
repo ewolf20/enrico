@@ -174,10 +174,11 @@ def main():
                             'Image watchdog could not get new unique run_id for new image. Check the experiment.')
                         warned = True
                     move_misplaced_images()
+                    continue
 #             if old_list_bound_variables is not None:
 #                 if set(new_row_dict['ListBoundVariables']) != set(old_list_bound_variables):
 #                     warnings.warning('List bound variables changed in Cicero. Check if new run should be started.')
-
+            old_run_id = new_row_dict['run_id']
             for filenum in range(n_images_per_run):
                 new_row_dict['filename' +
                              str(filenum)] = output_filenames[filenum]
@@ -216,7 +217,6 @@ def main():
             except:
                 print('bug: first shot formatting issues')
 
-            old_run_id = new_row_dict['run_id']
             old_list_bound_variables = new_row_dict['ListBoundVariables']
 
         # Wait before checking again
