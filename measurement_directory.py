@@ -47,3 +47,19 @@ def move_misplaced_images():
     shutil.move(r'images', misplaced_filepath)
     print('moved misplaced file(s) to {path}'.format(path=misplaced_filepath))
     os.mkdir(r'images')
+
+
+def todays_measurements():
+    # name the run test if you want test files to be cleaned up later
+    today = datetime.datetime.today()
+    month = datetime.datetime.strftime(today, '%m')
+    date = datetime.datetime.strftime(today, '%y%m%d')
+    if not os.path.exists(r'{month}\{date}'.format(month=month, date=date)):
+        os.mkdir(r'{month}\{date}'.format(month=month, date=date))
+        ValueError('No datasets saved today.')
+    month_date_dir = r'{month}\{date}\\'.format(
+        month=month, date=date)
+    return os.listdir(month_date_dir)
+
+
+print(todays_measurements())
