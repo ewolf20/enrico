@@ -7,10 +7,10 @@ def numpyfy_MATLABarray(matlab_array):
 
 
 def getDualImagingAnalysis(eng, filepath,
-                           analysis_library_path=r'C:\Users\FermiCam2\Desktop\MatlabAnalysis\Fermi1_MatlabImageAnalysis',
+                           analysis_library_path=r'C:\Users\Fermi1\Documents\GitHub\Fermi1_MatlabImageAnalysis',
                            marqueeBox=None, normBox=None, save_jpg_preview=True):
     try:
-        # eng.eval(r'cd ' + analysis_library_path, nargout=0)
+        eng.eval(r'cd ' + analysis_library_path, nargout=0)
         matlab_dict = eng.getDualImagingZcamAnalysis(filepath)
         # if marqueeBox is None and normBox is None:
         #     matlab_dict = eng.getMeasNaAnalysis(filepath) #calling MATLAB function getMeasNaAnalysis
