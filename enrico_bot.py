@@ -29,6 +29,3 @@ def post_image(image_filepath):
     except:
         print('enrico_bot error')
         pass
-
-
-post_image('1_Enrico-Fermi.jpg')
