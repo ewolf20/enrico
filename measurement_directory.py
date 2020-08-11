@@ -1,6 +1,7 @@
 import os
 import datetime
 import shutil
+import parse
 
 
 def measurement_directory(warn=False):
@@ -60,3 +61,9 @@ def todays_measurements():
     month_date_dir = r'{month}\{date}\\'.format(
         month=month, date=date)
     return os.listdir(month_date_dir)
+
+
+def run_id_from_filename(filename, filename_format='{}_{}.spe'):
+    result = parse.parse(filename_format, filename)
+    run_id = int(result[0])
+    return run_id
