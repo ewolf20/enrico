@@ -10,7 +10,7 @@ where [WATCHFOLDER] is the folder your camera program writes images to.
 
 '''
 # import latest version of breadboard from github, rather than using the pip install.
-breadboard_repo_path = r'C:\Users\Alex\Dropbox (MIT)\lab side projects\control software\breadboard-python-client\\'
+breadboard_repo_path = r'D:\Fermidata1\enrico\breadboard-python-client\\'
 
 import os
 import time
@@ -165,41 +165,35 @@ def main():
                 output_filenames = []
                 new_names = sorted(new_names)
                 image_idx = 0
+                run_id = new_row_dict['run_id']
                 for filename in new_names[0:n_images_per_run]:
                     print(filename)
                     done_moving = False
                     while not done_moving:
-                        try:
-                            # prevent python from corrupting file, wait for writing to disk to finish
-                            filesize_changing = True
-                            old_filesize = 0
-                            while filesize_changing:
-                                if os.path.getsize(os.path.join(r'images\\', filename)) == old_filesize:
-                                    filesize_changing = False
-                                else:
-                                    old_filesize = os.path.getsize(
-                                        os.path.join(r'images\\', filename))
-                                    time.sleep(0.2)
-                            # rename images according to their associated run_id
-                            old_filename = filename
-                            new_filename = str(run_id) + \
-                                '_' + str(image_idx) + '.spe'
+                        # prevent python from corrupting file, wait for writing to disk to finish
+                        filesize_changing = True
+                        old_filesize = 0
+                        while os.path.getsize(os.path.join(r'images\\', filename)) != old_filesize:
+                            old_filesize = os.path.getsize(os.path.join(r'images\\', filename))
+                            time.sleep(0.2)
+                        # rename images according to their associated run_id
+                        old_filename = filename
+                        new_filename = str(run_id) + '_' + str(image_idx) + '.spe'
+                        print(new_filename)
+                        new_filepath = os.path.join(
+                            measurement_dir, new_filename)
+                        if os.path.exists(new_filepath):
+                            new_filename = rename_file(new_filename)
                             new_filepath = os.path.join(
                                 measurement_dir, new_filename)
-                            if os.path.exists(new_filepath):
-                                new_filename = rename_file(new_filename)
-                                new_filepath = os.path.join(
-                                    measurement_dir, new_filename)
-            #                     if save_to_BEC1_server:
-            #                         new_filepath_BEC1server = 'foo' #TODO set BEC1 server filepath
-            #                         shutil.copyfile(os.path.join(r'images\\', old_filename), new_filepath_BEC1server)
-                            shutil.move(os.path.join(
-                                r'images\\', old_filename), new_filepath)
-                            done_moving = True
-                            image_idx += 1
-                            output_filenames.append(new_filename)
-                        except:
-                            time.sleep(0.5)
+        #                     if save_to_BEC1_server:
+        #                         new_filepath_BEC1server = 'foo' #TODO set BEC1 server filepath
+        #                         shutil.copyfile(os.path.join(r'images\\', old_filename), new_filepath_BEC1server)
+                        shutil.move(os.path.join(
+                            r'images\\', old_filename), new_filepath)
+                        done_moving = True
+                        image_idx += 1
+                        output_filenames.append(new_filename)
 
             # associate new image with latest run parameters in local log
 
