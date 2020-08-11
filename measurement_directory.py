@@ -4,9 +4,10 @@ import shutil
 import parse
 
 
-def measurement_directory(warn=False):
+def measurement_directory(warn=False, measurement_name = None):
     # name the run test if you want test files to be cleaned up later
-    measurement_name = input('Enter name for this set of runs:')
+    if measurement_name is None:
+        measurement_name = input('Enter name for this set of runs:')
     today = datetime.datetime.today()
     month = datetime.datetime.strftime(today, '%m')
     date = datetime.datetime.strftime(today, '%y%m%d')
