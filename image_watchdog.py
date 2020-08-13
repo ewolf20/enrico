@@ -63,7 +63,7 @@ def get_newest_run_dict():
 def check_run_image_concurrent(runtime_str, max_time_diff_in_sec=40):
     runtime = datetime.datetime.strptime(runtime_str, "%Y-%m-%dT%H:%M:%SZ")
     time_diff = (datetime.datetime.today() - runtime)
-    if time_diff.total_seconds() < max_time_diff_in_sec:
+    if 0 < time_diff.total_seconds() < max_time_diff_in_sec:
         return True
     else:
         return False
@@ -174,11 +174,13 @@ def main():
                         filesize_changing = True
                         old_filesize = 0
                         while os.path.getsize(os.path.join(r'images\\', filename)) != old_filesize:
-                            old_filesize = os.path.getsize(os.path.join(r'images\\', filename))
+                            old_filesize = os.path.getsize(
+                                os.path.join(r'images\\', filename))
                             time.sleep(0.2)
                         # rename images according to their associated run_id
                         old_filename = filename
-                        new_filename = str(run_id) + '_' + str(image_idx) + '.spe'
+                        new_filename = str(run_id) + '_' + \
+                            str(image_idx) + '.spe'
                         print(new_filename)
                         new_filepath = os.path.join(
                             measurement_dir, new_filename)
