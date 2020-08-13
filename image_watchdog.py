@@ -60,10 +60,10 @@ def get_newest_run_dict():
         run_id_guess += 1
 
 
-def check_run_image_concurrent(runtime_str, max_time_diff_in_sec=40):
+def check_run_image_concurrent(runtime_str, max_time_diff_in_sec=40, min_time_diff_in_sec=3):
     runtime = datetime.datetime.strptime(runtime_str, "%Y-%m-%dT%H:%M:%SZ")
     time_diff = (datetime.datetime.today() - runtime)
-    if 0 < time_diff.total_seconds() < max_time_diff_in_sec:
+    if min_time_diff_in_sec < time_diff.total_seconds() < max_time_diff_in_sec:
         return True
     else:
         return False
@@ -200,17 +200,6 @@ def main():
             # associate new image with latest run parameters in local log
 
             old_run_id = new_row_dict['run_id']
-            # for filenum in range(n_images_per_run):
-            #     new_row_dict['filename' +
-            #                  str(filenum)] = output_filenames[filenum]
-            # new_row_dict['notes'] = ' '
-            # new_row_dict['badshot'] = False
-            # df_log = pd.DataFrame({key:[new_row_dict[key]] for key in new_row_dict})
-            # # write to local log
-            # if df_log is None:
-            #     df_log.to_csv(log_filepath, index=False)
-            # else:
-            #     df_log.to_csv(log_filepath, index=False, mode='a')
 
             # Write to Breadboard
             try:
@@ -223,15 +212,6 @@ def main():
             except:
                 warnings.warn('Failed to write to breadboard.')
                 pass
-            # print('New file(s): ' + str(output_filenames) +
-            #       ' associated with run parameters \n')
-            # print(new_row_dict['runtime'])
-            # listboundvars = new_row_dict['ListBoundVariables']
-            # try:
-            #     for var in listboundvars:
-            #         print(var + ':' + str(new_row_dict[var]))
-            # except:
-            #     print('bug: first shot formatting issues')
 
             old_list_bound_variables = new_row_dict['ListBoundVariables']
 
