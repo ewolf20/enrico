@@ -8,3 +8,5 @@ API_CONFIG_fermi1.json
 images
 
 .ipynb_checkpoints
+
+__pycache__/
