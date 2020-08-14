@@ -25,19 +25,19 @@ import pandas as pd
 from measurement_directory import *
 import enrico_bot
 import logging
-# logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-# formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
+formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
 
-# file_handler = logging.FileHandler('image_watchdog_debugging.log')
-# file_handler.setLevel(logging.ERROR)
-# file_handler.setFormatter(formatter)
+file_handler = logging.FileHandler('image_watchdog_debugging.log')
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
 
 # stream_handler = logging.StreamHandler()
 # stream_handler.setFormatter(formatter)
 
-# logger.addHandler(file_handler)
+logger.addHandler(file_handler)
 # logger.addHandler(stream_handler)
 
 
@@ -140,10 +140,14 @@ def main():
         # listen to breadboard server for new run_id
         new_row_dict, _ = get_newest_run_dict()
         if new_row_dict['run_id'] != displayed_run_id:
-            print(
+            # print(
+            #     'new run_id: ' + str(new_row_dict['run_id']) + '. runtime: ' + str(new_row_dict['runtime']))
+            # print('list bound variables: {run_dict}'.format(run_dict={key: new_row_dict[key]
+            #                                                           for key in new_row_dict['ListBoundVariables']}))
+            logger.debug(
                 'new run_id: ' + str(new_row_dict['run_id']) + '. runtime: ' + str(new_row_dict['runtime']))
-            print('list bound variables: {run_dict}'.format(run_dict={key: new_row_dict[key]
-                                                                      for key in new_row_dict['ListBoundVariables']}))
+            logger.debug('list bound variables: {run_dict}'.format(run_dict={key: new_row_dict[key]
+                                                                             for key in new_row_dict['ListBoundVariables']}))
             displayed_run_id = new_row_dict['run_id']
 
         # check if new images has come in
@@ -164,13 +168,12 @@ def main():
                             get_dict_tries += 1
                             time.sleep(0.2)
                     if new_row_dict['run_id'] == old_run_id:
-                        warning = warnings.warn(
-                            'run_id did not update between shots, check on control PC if cicero breadboard logger is on.')
-                        print(warning)
-                        # logger.warn(warning)
+                        warning_message = 'run_id did not update between shots, check on control PC if cicero breadboard logger is on.'
+                        warnings.warn(warning_message)
+                        # print(warning)
+                        logger.warn(warning_message)
                         if not warned:  # prevent enrico_bot from spamming
-                            enrico_bot.post_message(
-                                'Image watchdog could not get new unique run_id for new image. Check the experiment.')
+                            enrico_bot.post_message(warning_message)
                             warned = True
                         move_misplaced_images()
                         continue
@@ -178,14 +181,13 @@ def main():
     #                 if set(new_row_dict['ListBoundVariables']) != set(old_list_bound_variables):
     #                     warnings.warning('List bound variables changed in Cicero. Check if new run should be started.')
                 if not check_run_image_concurrent(new_row_dict['runtime']):
+                    warning_message = 'Incoming image and latest Breadboard runtime differ by too much. Assign run_id manually later.'
                     if not warned:
-                        enrico_bot.post_message(
-                            'Incoming image and latest Breadboard runtime differ by too much. Assign run_id manually later.')
+                        enrico_bot.post_message(warning_message)
                         warned = True
-                    warning = warnings.warn(
-                        'Incoming image and latest Breadboard runtime differ by too much. Assign run_id manually later.')
-                    print(warning)
-                    # logger.warn(warning)
+                    warning = warnings.warn(warning_message)
+                    # print(warning)
+                    logger.warn(warning_message)
                     move_misplaced_images()
                     continue
 
@@ -194,7 +196,8 @@ def main():
                 image_idx = 0
                 run_id = new_row_dict['run_id']
                 for filename in new_names[0:n_images_per_run]:
-                    print('moving ' + filename)
+                    # print('moving ' + filename)
+                    logger.debug('moving ' + filename)
                     done_moving = False
                     while not done_moving:
                         # prevent python from corrupting file, wait for writing to disk to finish
@@ -232,12 +235,12 @@ def main():
                 bc.add_measurement_name_to_run(
                     new_row_dict['run_id'], measurement_dir)
                 if resp.status_code != 200:
-                    print(resp.text)
-                    # logger.warn(resp.text)
+                    # print(resp.text)
+                    logger.warn(resp.text)
             except:
                 warning = warnings.warn('Failed to write to breadboard.')
-                print(warning)
-                # logger.warn(warning)
+                # print(warning)
+                logger.warn('Failed to write to breadboard.')
                 pass
 
             old_list_bound_variables = new_row_dict['ListBoundVariables']

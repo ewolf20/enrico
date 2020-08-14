@@ -14,6 +14,20 @@ import shutil
 import warnings
 import enrico_bot
 from image_watchdog import getFileList
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
+
+file_handler = logging.FileHandler('analysis_debugging.log')
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+
+# stream_handler = logging.StreamHandler()
+# stream_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
 
 
 # loading takes a while, don't run this if testing
@@ -80,13 +94,13 @@ def main(analysis_type, watchfolder, load_matlab=True):
         # TODO adapt for triple imaging later
         abs_image_path = os.path.join(os.path.join(
             os.getcwd(), watchfolder), image_filename)
-        print('{file} analyzing: '.format(file=image_filename))
+        logger.debug('{file} analyzing: '.format(file=image_filename))
         analysis_dict, settings = analysis_function(
             abs_image_path, previous_settings)
         if not output_previous_settings:
             settings = None  # forces user to select new marquee box for each shot
         for key in analyzed_var_names:
-            print(key, analysis_dict[key])
+            logger.debug(key, analysis_dict[key])
         return analysis_dict, settings
 
     previous_settings = None
@@ -121,8 +135,10 @@ def main(analysis_type, watchfolder, load_matlab=True):
                 done_files += popped_file
             except:
                 analysis_dict = {}
-                warnings.warn(
-                    str(run_id) + 'could not be analyzed. Skipping for now.')
+                warning_message = str(
+                    run_id) + 'could not be analyzed. Skipping for now.'
+                warnings.warn(warning_message)
+                logger.warn(warning_message)
             resp = bc.append_analysis_to_run(run_id, analysis_dict)
             print('\n')
 
