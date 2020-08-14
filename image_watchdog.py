@@ -75,12 +75,13 @@ def get_newest_run_dict():
         run_id_guess += 1
 
 
-def check_run_image_concurrent(runtime_str, max_time_diff_in_sec=40, min_time_diff_in_sec=3):
+def check_run_image_concurrent(runtime_str, max_time_diff_in_sec=10, min_time_diff_in_sec=0):
     runtime = datetime.datetime.strptime(runtime_str, "%Y-%m-%dT%H:%M:%SZ")
     time_diff = (datetime.datetime.today() - runtime)
     if min_time_diff_in_sec < time_diff.total_seconds() < max_time_diff_in_sec:
         return True
     else:
+        print("time diff in seconds: {time_diff}".format(time_diff = str(time_diff.total_seconds())))
         return False
 
 
@@ -97,13 +98,13 @@ def rename_file(filename):
     return rename
 
 
-def main():
+def main(measurement_name = None):
     refresh_time = 1  # seconds
 
     """Name the set of runs"""
     print('existing runs: ')
     print(todays_measurements())
-    measurement_dir = measurement_directory(warn=True)
+    measurement_dir = measurement_directory(measurement_name = measurement_name, warn=True)
 
     watchfolder = os.getcwd() + '\images'  # feed the program your watchfolder
 
