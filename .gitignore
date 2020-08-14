@@ -10,3 +10,5 @@ images
 .ipynb_checkpoints
 
 __pycache__/
+*.log
+breadboard-python-client/
