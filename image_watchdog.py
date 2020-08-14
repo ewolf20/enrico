@@ -128,7 +128,7 @@ def main():
         new_row_dict, _ = get_newest_run_dict()
         if new_row_dict['run_id'] != displayed_run_id:
             print('new run_id: ' + str(new_row_dict['run_id']))
-            print('runtime: ' + str(new_row_dict['runtime'])
+            print('runtime: ' + str(new_row_dict['runtime']))
 
         # check if new images has come in
         if len(new_names) > 0:
@@ -139,9 +139,9 @@ def main():
                 # new_row_dict, _ = get_newest_run_dict()
 
                 if new_row_dict['run_id'] == old_run_id and old_run_id is not None:
-                    get_dict_tries, max_tries=0, 20
+                    get_dict_tries, max_tries = 0, 20
                     while get_dict_tries < max_tries:
-                        new_row_dict, _=get_newest_run_dict()
+                        new_row_dict, _ = get_newest_run_dict()
                         if new_row_dict['run_id'] != old_run_id:
                             break
                         else:
@@ -153,7 +153,7 @@ def main():
                         if not warned:  # prevent enrico_bot from spamming
                             enrico_bot.post_message(
                                 'Image watchdog could not get new unique run_id for new image. Check the experiment.')
-                            warned=True
+                            warned = True
                         move_misplaced_images()
                         continue
     #             if old_list_bound_variables is not None:
@@ -163,51 +163,51 @@ def main():
                     if not warned:
                         enrico_bot.post_message(
                             'Incoming image and latest Breadboard runtime differ by too much. Assign run_id manually later.')
-                        warned=True
+                        warned = True
                     warnings.warn(
                         'Incoming image and latest Breadboard runtime differ by too much. Assign run_id manually later.')
                     move_misplaced_images()
                     continue
 
-                output_filenames=[]
-                new_names=sorted(new_names)
-                image_idx=0
-                run_id=new_row_dict['run_id']
+                output_filenames = []
+                new_names = sorted(new_names)
+                image_idx = 0
+                run_id = new_row_dict['run_id']
                 for filename in new_names[0:n_images_per_run]:
                     print(filename)
-                    done_moving=False
+                    done_moving = False
                     while not done_moving:
                         # prevent python from corrupting file, wait for writing to disk to finish
-                        filesize_changing=True
-                        old_filesize=0
+                        filesize_changing = True
+                        old_filesize = 0
                         while os.path.getsize(os.path.join(r'images\\', filename)) != old_filesize:
-                            old_filesize=os.path.getsize(
+                            old_filesize = os.path.getsize(
                                 os.path.join(r'images\\', filename))
                             time.sleep(0.2)
                         # rename images according to their associated run_id
-                        old_filename=filename
-                        new_filename=str(run_id) + '_' + \
+                        old_filename = filename
+                        new_filename = str(run_id) + '_' + \
                             str(image_idx) + '.spe'
                         print(new_filename)
-                        new_filepath=os.path.join(
+                        new_filepath = os.path.join(
                             measurement_dir, new_filename)
                         if os.path.exists(new_filepath):
-                            new_filename=rename_file(new_filename)
-                            new_filepath=os.path.join(
+                            new_filename = rename_file(new_filename)
+                            new_filepath = os.path.join(
                                 measurement_dir, new_filename)
         #                     if save_to_BEC1_server:
         #                         new_filepath_BEC1server = 'foo' #TODO set BEC1 server filepath
         #                         shutil.copyfile(os.path.join(r'images\\', old_filename), new_filepath_BEC1server)
                         shutil.move(os.path.join(
                             r'images\\', old_filename), new_filepath)
-                        done_moving=True
+                        done_moving = True
                         image_idx += 1
                         output_filenames.append(new_filename)
-                    old_run_id=new_row_dict['run_id']
+                    old_run_id = new_row_dict['run_id']
 
             # Write to Breadboard
             try:
-                resp=bc.append_images_to_run(
+                resp = bc.append_images_to_run(
                     new_row_dict['run_id'], output_filenames)
                 bc.add_measurement_name_to_run(
                     new_row_dict['run_id'], measurement_dir)
@@ -217,7 +217,7 @@ def main():
                 warnings.warn('Failed to write to breadboard.')
                 pass
 
-            old_list_bound_variables=new_row_dict['ListBoundVariables']
+            old_list_bound_variables = new_row_dict['ListBoundVariables']
 
         # Wait before checking again
         time.sleep(refresh_time)
