@@ -46,7 +46,7 @@ warnings.filterwarnings(
 bc = BreadboardClient(config_path='API_CONFIG_fermi1.json')
 
 
-def main(analysis_type, watchfolder, load_matlab=True):
+def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
     refresh_time = 1  # seconds
     print("\n\n Watching this folder for changes: " + watchfolder + "\n\n")
 
@@ -106,6 +106,8 @@ def main(analysis_type, watchfolder, load_matlab=True):
     previous_settings = None
     unanalyzed_files = []
     done_files = []
+    unanalyzed_ids = []
+    done_ids = []
     append_mode = True
 
     # Main Loop
@@ -115,24 +117,55 @@ def main(analysis_type, watchfolder, load_matlab=True):
             continue
         else:
             files, _ = getFileList(watchfolder)
-            fresh_files = sorted(list(set(files).difference(
-                set(done_files)).difference(set(unanalyzed_files))))
-            unanalyzed_files += fresh_files  # push newest files to top of stack
+            # fresh_files = sorted(list(set(files).difference(
+            #     set(done_files)).difference(set(unanalyzed_files))))
+            # unanalyzed_files += fresh_files  # push newest files to top of stack
 
-        for file in reversed(unanalyzed_files):  # start from top of stack
-            run_id = run_id_from_filename(file)
+            run_ids = run_ids_from_filenames(files)
+            fresh_ids = sorted(list(set(run_ids).difference(
+                set(done_ids)).difference(set(unanalyzed_ids))))
+            unanalyzed_ids += fresh_ids
+
+        # for file in reversed(unanalyzed_files):  # start from top of stack
+        #     run_id = run_id_from_filename(file)
+        #     if append_mode:
+        #         run_dict = bc._send_message(
+        #             'get', '/runs/' + str(run_id) + '/').json()
+        #         if set(analyzed_var_names).issubset(set(run_dict.keys())):
+        #             popped_file = [unanalyzed_files.pop()]
+        #             done_files += popped_file
+        #             continue
+
+        # try:
+        #         analysis_dict, previous_settings = analyze_image(
+        #             file, previous_settings)
+        #         popped_file = [unanalyzed_files.pop()]
+        #         done_files += popped_file
+        #     except:
+        #         analysis_dict = {}
+        #         warning_message = str(
+        #             run_id) + 'could not be analyzed. Skipping for now.'
+        #         warnings.warn(warning_message)
+        #         logger.warn(warning_message)
+        #     resp = bc.append_analysis_to_run(run_id, analysis_dict)
+        #     print('\n')
+        for run_id in reversed(unanalyzed_ids):  # start from top of stack
+            if images_per_shot == 1:
+                file = '{run_id}_0.spe'.format(run_id=run_id)
+            else: #for adding triple imaging later
+                file = ['{run_id}_{idx}.spe'.format(run_id=run_id, idx=idx) for idx in range(images_per_shot)]
             if append_mode:
                 run_dict = bc._send_message(
                     'get', '/runs/' + str(run_id) + '/').json()
                 if set(analyzed_var_names).issubset(set(run_dict.keys())):
-                    popped_file = [unanalyzed_files.pop()]
-                    done_files += popped_file
+                    popped_id = [unanalyzed_files.pop()]
+                    done_ids += popped_id
                     continue
             try:
                 analysis_dict, previous_settings = analyze_image(
                     file, previous_settings)
-                popped_file = [unanalyzed_files.pop()]
-                done_files += popped_file
+                popped_id = [unanalyzed_files.pop()]
+                done_ids += popped_id
             except:
                 analysis_dict = {}
                 warning_message = str(
