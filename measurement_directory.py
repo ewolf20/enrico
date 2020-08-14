@@ -73,8 +73,9 @@ def run_id_from_filename(filename, filename_format='{}_{}.spe'):
 
 
 def run_ids_from_filenames(filenames, images_per_shot=1):
-    for file in files:
-    run_id = run_id_from_filename(file)
-    if run_id not in run_ids:
-        run_ids.append(run_id)
+    run_ids = []
+    for file in filenames:
+        run_id = run_id_from_filename(file)
+        if run_id not in run_ids:
+            run_ids.append(run_id)
     return(run_ids)
