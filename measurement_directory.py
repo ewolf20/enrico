@@ -10,7 +10,6 @@ def measurement_directory(warn=False, measurement_name=None):
         measurement_idx = input('Enter run index: ')
         measurement_name = 'run' + measurement_idx + '_' + \
             input('Enter name for run: ')
-        print(measurement_name)
     today = datetime.datetime.today()
     month = datetime.datetime.strftime(today, '%m')
     date = datetime.datetime.strftime(today, '%y%m%d')
