@@ -58,14 +58,14 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
     # define analyzed_var_names list manually, these are the scalar values most easily parsed from Carsten's analysis MATLAB structs.
     # TODO: parse all of Carsten's MATLAB struct, not just scalar values.
     if analysis_type == 'fake analysis':
-        import matlab_wrapper.fake_analysis1 as analysis_function
-        import matlab_wrapper.fake_analysis1_var_names as analyzed_var_names
+        from matlab_wrapper import fake_analysis1_var_names as analyzed_var_names
+        from matlab_wrapper import fake_analysis1 as analysis_function
     elif analysis_type == 'fake analysis 2':
-        import matlab_wrapper.fake_analysis2 as analysis_function
-        import matlab_wrapper.fake_analysis2_var_names as analyzed_var_names
+        from matlab_wrapper import fake_analysis2_var_names as analyzed_var_names
+        from matlab_wrapper import fake_analysis2 as analysis_function
     elif analysis_type == 'ycam':
         from matlab_wrapper import getYcamAnalysis
-        import matlab_wrapper.ycam_analyzed_var_names as analyzed_var_names
+        from matlab_wrapper import ycam_analyzed_var_names as analyzed_var_names
 
         def analysis_function(filepath, previous_settings=None):
             if previous_settings is None:
@@ -77,8 +77,7 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
             return analysis_dict, settings
     elif analysis_type == 'zcam_dual_imaging':
         from matlab_wrapper import getDualImagingAnalysis
-        import matlab_wrapper.dual_imaging_analyzed_var_names as analyzed_var_names
-
+        from matlab_wrapper import dual_imaging_analyzed_var_names as analyzed_var_names
         def analysis_function(filepath, previous_settings=None):
             if previous_settings is None:
                 matlab_dict = getDualImagingAnalysis(eng, filepath)
@@ -99,9 +98,12 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
             abs_image_path, previous_settings)
         if not output_previous_settings:
             settings = None  # forces user to select new marquee box for each shot
+        cleaned_analysis_dict = {}
         for key in analyzed_var_names:
-            logger.debug(key, analysis_dict[key])
-        return analysis_dict, settings
+            cleaned_analysis_dict[key] = analysis_dict[key]
+            print(key, analysis_dict[key])
+#             logger.debug(key, analysis_dict[key])
+        return cleaned_analysis_dict, settings
 
     previous_settings = None
     unanalyzed_files = []
@@ -149,30 +151,32 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
         #         logger.warn(warning_message)
         #     resp = bc.append_analysis_to_run(run_id, analysis_dict)
         #     print('\n')
-        for run_id in reversed(unanalyzed_ids):  # start from top of stack
-            if images_per_shot == 1:
-                file = '{run_id}_0.spe'.format(run_id=run_id)
-            else: #for adding triple imaging later
-                file = ['{run_id}_{idx}.spe'.format(run_id=run_id, idx=idx) for idx in range(images_per_shot)]
-            if append_mode:
-                run_dict = bc._send_message(
-                    'get', '/runs/' + str(run_id) + '/').json()
-                if set(analyzed_var_names).issubset(set(run_dict.keys())):
-                    popped_id = [unanalyzed_files.pop()]
+        
+        ##################################################################
+            for run_id in reversed(unanalyzed_ids):  # start from top of stack
+                if images_per_shot == 1:
+                    file = '{run_id}_0.spe'.format(run_id=run_id)
+                else: #for adding triple imaging later
+                    file = ['{run_id}_{idx}.spe'.format(run_id=run_id, idx=idx) for idx in range(images_per_shot)]
+                if append_mode:
+                    run_dict = bc._send_message(
+                        'get', '/runs/' + str(run_id) + '/').json()
+                    if set(analyzed_var_names).issubset(set(run_dict['parameters'].keys())):
+                        popped_id = [unanalyzed_ids.pop()]
+                        done_ids += popped_id
+                        continue
+                try:
+                    analysis_dict, previous_settings = analyze_image(
+                        file, previous_settings)
+                    popped_id = [unanalyzed_ids.pop()]
                     done_ids += popped_id
-                    continue
-            try:
-                analysis_dict, previous_settings = analyze_image(
-                    file, previous_settings)
-                popped_id = [unanalyzed_files.pop()]
-                done_ids += popped_id
-            except:
-                analysis_dict = {}
-                warning_message = str(
-                    run_id) + 'could not be analyzed. Skipping for now.'
-                warnings.warn(warning_message)
-                logger.warn(warning_message)
-            resp = bc.append_analysis_to_run(run_id, analysis_dict)
-            print('\n')
-
+                    resp = bc.append_analysis_to_run(run_id, analysis_dict)
+                except:
+                    analysis_dict = {}
+                    warning_message = str(
+                        run_id) + 'could not be analyzed. Skipping for now.'
+                    warnings.warn(warning_message)
+                    logger.warn(warning_message)
+                print('\n')
+################################################################################
         time.sleep(refresh_time)
