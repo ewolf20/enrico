@@ -1,13 +1,8 @@
 '''
-breadboard_python_watchdog.py
-=============================
-This lets you watch a folder for new single images and upload the metadata to Breadboard.
-Usage:
+image_watchdog.py watches the images folder and attempts to match them to a breadboard entry. On match, files are moved to MM/YYMMDD/run_idx_name/.
+Otherwise, they are moved to MM/YYMMDD/run_idx_name_misplaced.
 
-python3 breadboard_python_watchdog.py [WATCHFOLDER]
-
-where [WATCHFOLDER] is the folder your camera program writes images to.
-
+A debugging log is created in the MM/YYMMDD with info to manually associate files that failed to match.
 '''
 # import latest version of breadboard from github, rather than using the pip install.
 breadboard_repo_path = r'D:\Fermidata1\enrico\breadboard-python-client\\'
@@ -35,12 +30,7 @@ file_handler = logging.FileHandler(measurement_directory(
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 
-# stream_handler = logging.StreamHandler()
-# stream_handler.setFormatter(formatter)
-
 logger.addHandler(file_handler)
-# logger.addHandler(stream_handler)
-
 
 warnings.filterwarnings(
     "ignore", "Your application has authenticated using end user credentials")
@@ -161,6 +151,7 @@ def main(measurement_name=None):
                 # waiting for all images from  newest run
                 continue
             else:
+                print('\n')
                 # safety checks that run_id is updating and image came within 10 seconds of last Cicero upload.
                 safety_check_passed = True
                 if new_row_dict['run_id'] == old_run_id and old_run_id is not None:
@@ -176,7 +167,7 @@ def main(measurement_name=None):
                         warning_message = 'run_id did not update from old id {id} between shots, check on control PC if cicero breadboard logger is on.'.format(
                             id=str(old_run_id))
                         warnings.warn(warning_message)
-                        logger.warn(warning_message)
+                        logger.warning(warning_message)
                         if not warned:  # prevent enrico_bot from spamming
                             enrico_bot.post_message(warning_message)
                             warned = True
@@ -185,73 +176,73 @@ def main(measurement_name=None):
                     warning_message = 'Incoming image time and latest Breadboard runtime differ by too much. Check run_id {id} manually later.'.format(
                         id=str(new_row_dict['run_id']))
                     if not warned:
-                        enrico_bot.post_message(warning_message)
+                        # enrico_bot.post_message(warning_message)
                         warned = True
                     warning = warnings.warn(warning_message)
                     # print(warning)
-                    logger.warn(warning_message)
+                    logger.warning(warning_message)
                     safety_check_passed = False
 
                 if not safety_check_passed:
-                    logger.debug('moved {files} to {directory}'.format(
-                        files=str(os.listdir('images')), directory=measurement_dir + 'misplaced'))
-                    shutil.move(r'images', measurement_dir + 'misplaced')
-                    continue
+                    destination = measurement_dir + '_misplaced'
+                    if not os.path.exists(destination):
+                        os.mkdir(destination)
+                else:
+                    destination = measurement_dir
 
                 output_filenames = []
                 new_names = sorted(new_names)
                 image_idx = 0
                 run_id = new_row_dict['run_id']
                 for filename in new_names[0:n_images_per_run]:
-                    done_moving = False
-                    while not done_moving:
-                        # prevent python from corrupting file, wait for writing to disk to finish
-                        filesize_changing = True
-                        old_filesize = 0
-                        while os.path.getsize(os.path.join(r'images\\', filename)) != old_filesize:
-                            old_filesize = os.path.getsize(
-                                os.path.join(r'images\\', filename))
-                            time.sleep(0.2)
-                        # rename images according to their associated run_id
-                        old_filename = filename
+                    # prevent python from corrupting file, wait for writing to disk to finish
+                    old_filesize = 0
+                    while os.path.getsize(os.path.join(r'images\\', filename)) != old_filesize:
+                        old_filesize = os.path.getsize(
+                            os.path.join(r'images\\', filename))
+                        time.sleep(0.2)
+                    # rename images according to their associated run_id
+                    old_filename = filename
+                    if safety_check_passed:
                         new_filename = str(run_id) + '_' + \
                             str(image_idx) + '.spe'
-                        print(new_filename)
+                    else:
+                        new_filename = old_filename
+                    new_filepath = os.path.join(
+                        destination, new_filename)
+                    if os.path.exists(new_filepath):
+                        new_filename = rename_file(new_filename)
                         new_filepath = os.path.join(
-                            measurement_dir, new_filename)
-                        if os.path.exists(new_filepath):
-                            new_filename = rename_file(new_filename)
-                            new_filepath = os.path.join(
-                                measurement_dir, new_filename)
-        #                     if save_to_BEC1_server:
-        #                         new_filepath_BEC1server = 'foo' #TODO set BEC1 server filepath
-        #                         shutil.copyfile(os.path.join(r'images\\', old_filename), new_filepath_BEC1server)
-                        shutil.move(os.path.join(
-                            r'images\\', old_filename), new_filepath)
-                        logger.debug('moving {old_name} to {destination}'.format(old_name=old_filename,
-                                                                                 destination=new_filename))
-                        done_moving = True
-                        image_idx += 1
-                        output_filenames.append(new_filename)
-                    old_run_id = new_row_dict['run_id']
+                            destination, new_filename)
+        #                 if save_to_BEC1_server:
+        #                     new_filepath_BEC1server = 'foo' #TODO set BEC1 server filepath
+        #                     shutil.copyfile(os.path.join(r'images\\', old_filename), new_filepath_BEC1server)
+                    shutil.move(os.path.join(
+                        r'images\\', old_filename), new_filepath)
+                    logger.debug('moving {old_name} to {destination}'.format(old_name=old_filename,
+                                                                             destination=new_filepath))
+                    image_idx += 1
+                    output_filenames.append(new_filename)
 
             # Write to Breadboard
-            try:
-                resp = bc.append_images_to_run(
-                    new_row_dict['run_id'], output_filenames)
-                bc.add_measurement_name_to_run(
-                    new_row_dict['run_id'], measurement_dir)
-                if resp.status_code != 200:
-                    logger.warn('Upload error: ' + resp.text)
-                else:
-                    logger.debug('Uploaded filenames {files} to breadboard run_id {id}.'.format(
-                        files=str(output_filenames), id=str(new_row_dict['run_id'])))
-            except:
-                warning = 'Failed to write {files} to breadboard run_id {id}.'.format(
-                    files=str(output_filenames), id=str(new_row_dict['run_id']))
-                warnings.warn(warning)
-                logger.warn(warning)
-                pass
+            if safety_check_passed:
+                old_run_id = new_row_dict['run_id']
+                try:
+                    resp = bc.append_images_to_run(
+                        new_row_dict['run_id'], output_filenames)
+                    bc.add_measurement_name_to_run(
+                        new_row_dict['run_id'], measurement_dir)
+                    if resp.status_code != 200:
+                        logger.warning('Upload error: ' + resp.text)
+                    else:
+                        logger.debug('Uploaded filenames {files} to breadboard run_id {id}.'.format(
+                            files=str(output_filenames), id=str(new_row_dict['run_id'])))
+                except:
+                    warning = 'Failed to write {files} to breadboard run_id {id}.'.format(
+                        files=str(output_filenames), id=str(new_row_dict['run_id']))
+                    warnings.warn(warning)
+                    logger.warning(warning)
+                    pass
 
             old_list_bound_variables = new_row_dict['ListBoundVariables']
 
@@ -267,3 +258,5 @@ def main(measurement_name=None):
 #         main()
 #     except:
 #         pass
+
+main()
