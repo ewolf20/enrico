@@ -90,7 +90,7 @@ def rename_file(filename):
     return rename
 
 
-def main(measurement_name=None):
+def main(measurement_name=None, n_images_per_run=None):
     refresh_time = 1  # seconds
 
     """Name the set of runs"""
@@ -102,8 +102,9 @@ def main(measurement_name=None):
     watchfolder = os.getcwd() + '\images'  # feed the program your watchfolder
 
     names_old, paths_old = getFileList(watchfolder)
-    n_images_per_run = int(
-        input('How many images arrive per run? (e.g. 3 for triple imaging sequence) '))
+    if n_images_per_run is None:
+        n_images_per_run = int(
+            input('How many images arrive per run? (e.g. 3 for triple imaging sequence) '))
     print("\n\nWatching this folder for changes: " + watchfolder +
           ". Moving images to " + measurement_dir + "\n\n")
 #     ready = False
@@ -147,10 +148,7 @@ def main(measurement_name=None):
         # check if new images has come in
         if len(new_names) > 0:
             incomingfile_time = datetime.datetime.today()
-            if len(new_names) < n_images_per_run:
-                # waiting for all images from  newest run
-                continue
-            else:
+            if len(new_names) == n_images_per_run:
                 print('\n')
                 # safety checks that run_id is updating and image came within 10 seconds of last Cicero upload.
                 safety_check_passed = True
@@ -224,39 +222,37 @@ def main(measurement_name=None):
                     image_idx += 1
                     output_filenames.append(new_filename)
 
-            # Write to Breadboard
-            if safety_check_passed:
-                old_run_id = new_row_dict['run_id']
-                try:
-                    resp = bc.append_images_to_run(
-                        new_row_dict['run_id'], output_filenames)
-                    bc.add_measurement_name_to_run(
-                        new_row_dict['run_id'], measurement_dir)
-                    if resp.status_code != 200:
-                        logger.warning('Upload error: ' + resp.text)
-                    else:
-                        logger.debug('Uploaded filenames {files} to breadboard run_id {id}.'.format(
-                            files=str(output_filenames), id=str(new_row_dict['run_id'])))
-                except:
-                    warning = 'Failed to write {files} to breadboard run_id {id}.'.format(
-                        files=str(output_filenames), id=str(new_row_dict['run_id']))
-                    warnings.warn(warning)
-                    logger.warning(warning)
-                    pass
-
-            old_list_bound_variables = new_row_dict['ListBoundVariables']
+                # Write to Breadboard
+                if safety_check_passed:
+                    old_run_id = new_row_dict['run_id']
+                    try:
+                        resp = bc.append_images_to_run(
+                            new_row_dict['run_id'], output_filenames)
+                        bc.add_measurement_name_to_run(
+                            new_row_dict['run_id'], measurement_dir)
+                        if resp.status_code != 200:
+                            logger.warning('Upload error: ' + resp.text)
+                        else:
+                            logger.debug('Uploaded filenames {files} to breadboard run_id {id}.'.format(
+                                files=str(output_filenames), id=str(new_row_dict['run_id'])))
+                    except:
+                        warning = 'Failed to write {files} to breadboard run_id {id}.'.format(
+                            files=str(output_filenames), id=str(new_row_dict['run_id']))
+                        warnings.warn(warning)
+                        logger.warning(warning)
+                        pass
 
         # Wait before checking again
         time.sleep(refresh_time)
 
 
-# if __name__ == "__main__":
-#     # automatic_restart = None
-#     # while not (automatic_restart == 'y' or automatic_restart == 'n'):
-#     #     automatic_restart = input('Would you like image_watchdog to automatically restart and save to the folder MM/YYMMDD/automatic_restart after crash? Recommended for overnight runs only. [y/n]: ')
-#     try:
-#         main()
-#     except:
-#         pass
-
-main()
+if __name__ == "__main__":
+    if len(sys.argv) == 3:
+        measurement_name = sys.argv[1]
+        n_images_per_run = int(sys.argv[2])
+        main(measurement_name, n_images_per_run)
+    elif len(sys.argv) == 1:
+        main()
+    else:
+        raise ValueError(
+            'If using command line inputs, input both measurement name and n_images_per_run. E.g. python image_watchdog.py run1_foo 3')
