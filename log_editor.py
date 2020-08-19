@@ -1,5 +1,5 @@
-# breadboard_repo_path = r'D:\Fermidata1\enrico\breadboard-python-client\\'
-breadboard_repo_path = r'C:\Users\Alex\Dropbox (MIT)\lab side projects\control software\breadboard-python-client\\'
+breadboard_repo_path = r'D:\Fermidata1\enrico\breadboard-python-client\\'
+# breadboard_repo_path = r'C:\Users\Alex\Dropbox (MIT)\lab side projects\control software\breadboard-python-client\\'
 import sys
 sys.path.insert(0, breadboard_repo_path)
 from breadboard import BreadboardClient
@@ -59,11 +59,11 @@ def save_image_log(event, qgrid_widget):
 
 
 def load_image_log(watchfolder, optional_column_names=[]):
-    # df = get_newest_df(
-    #     watchfolder, optional_column_names=optional_column_names)
+    df = get_newest_df(
+        watchfolder, optional_column_names=optional_column_names)
     # for testing
-    df = bc.get_runs_df_from_ids([219153, 219151],
-                                 optional_column_names=optional_column_names)
+    # df = bc.get_runs_df_from_ids([219153, 219151],
+    #                              optional_column_names=optional_column_names)
     for column in optional_column_names:
         if column not in df.columns:
             df[column] = nan
@@ -83,6 +83,8 @@ def load_image_log(watchfolder, optional_column_names=[]):
 def load_qgrid(b):
     load_qgrid.loaded_qgrid = load_image_log(filechooser_widget.selected_path,
                                              list(optional_columns_widget.options))
+    xvars_menu.options = load_qgrid.loaded_qgrid.get_changed_df().columns
+    yvars_menu.options = load_qgrid.loaded_qgrid.get_changed_df().columns
 
 
 load_button = widgets.Button(description='load')
@@ -148,3 +150,62 @@ def clear_column(button):
 clear_column_button.on_click(clear_column)
 display(widgets.HBox([optional_columns_widget, textbox,
                       add_column_button, clear_column_button]))
+
+
+# live plotting
+xvars_display = widgets.Select(
+    options=[],
+    disabled=False,
+)
+
+yvars_display = widgets.Select(
+    options=[],
+    disabled=False,
+)
+
+xvars_menu = widgets.Dropdown(
+    options=[], description='xvar')
+yvars_menu = widgets.Dropdown(
+    options=[], description='yvar')
+
+add_plot_button = widgets.Button(description='add (xvar, yvar)')
+
+
+def add_plot(button):
+    xvars, yvars = list(xvars_display.options), list(yvars_display.options)
+    xvars.append(xvars_menu.value), yvars.append(yvars_menu.value)
+    xvars_display.options, yvars_display.options = xvars, yvars
+
+
+add_plot_button.on_click(add_plot)
+clear_plot_button = widgets.Button(description='clear')
+
+
+def clear_plot(button):
+    xvars, yvars = list(xvars_display.options), list(yvars_display.options)
+    xvars.pop(), yvars.pop()
+    xvars_display.options, yvars_display.options = xvars, yvars
+
+
+clear_plot_button.on_click(clear_plot)
+
+VBox_x = widgets.VBox([xvars_menu, xvars_display])
+VBox_y = widgets.VBox([yvars_menu, yvars_display])
+VBox_buttons = widgets.VBox([add_plot_button, clear_plot_button])
+live_plot_HBox = widgets.HBox(
+    [VBox_x, VBox_y, VBox_buttons])
+
+# TODO create image preview widget
+# image_viewer = widgets.Output(layout={'border': '1px solid black'})
+# def show_selected_image(event, qgrid_widget):
+#     image_viewer.clear_output()
+#     row_idx = int(event['new'][0])
+#     df = pd.read_csv(filename)
+#     raw_image_filename = df.loc[row_idx, 'filename0']
+#     filepath = measurement_dir + '\\' + raw_image_filename.replace('.spe', '.jpg')
+#     with image_viewer:
+#         if os.path.exists(filepath) and '.jpg' in filepath:
+#             pil_img = Image(filepath)
+#             display(pil_img)
+#         else:
+#             display('no jpg preview at ' + filepath)
