@@ -3,7 +3,6 @@ breadboard_repo_path = r'D:\Fermidata1\enrico\breadboard-python-client\\'
 import sys
 sys.path.insert(0, breadboard_repo_path)
 from breadboard import BreadboardClient
-# enter your path to the API_config
 bc = BreadboardClient(config_path='API_CONFIG_fermi1.json')
 import ipywidgets as widgets
 from measurement_directory import *
@@ -23,10 +22,19 @@ display(filechooser_widget)
 table_viewer = widgets.Output(layout={'border': '1px solid black'})
 
 
-def get_newest_df(watchfolder, optional_column_names=[]):
+def get_newest_df(watchfolder, optional_column_names=[], existing_df=None):
     files, _ = getFileList(watchfolder)
-    run_ids = run_ids_from_filenames(files)
-    return bc.get_runs_df_from_ids(run_ids, optional_column_names=optional_column_names)
+    if existing_df is None:
+        run_ids = run_ids_from_filenames(files)
+        return bc.get_runs_df_from_ids(run_ids, optional_column_names=optional_column_names)
+    else:
+        run_ids = list(set().difference(
+            run_ids_from_filenames(files), list(existing_df['run_id'])))
+        if len(run_ids) > 0:
+            return existing_df.append(bc.get_runs_df_from_ids(run_ids,
+                                                              optional_column_names=optional_column_names), sort=False)
+        else:
+            return existing_df
 
 
 def save_image_log(event, qgrid_widget):
@@ -59,8 +67,12 @@ def save_image_log(event, qgrid_widget):
 
 
 def load_image_log(watchfolder, optional_column_names=[]):
+    try:
+        existing_df = load_qgrid.loaded_qgrid.get_changed_df()
+    except:
+        existing_df = None
     df = get_newest_df(
-        watchfolder, optional_column_names=optional_column_names)
+        watchfolder, optional_column_names=optional_column_names, existing_df=existing_df)
     # for testing
     # df = bc.get_runs_df_from_ids([219153, 219151],
     #                              optional_column_names=optional_column_names)
