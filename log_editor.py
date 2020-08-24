@@ -28,8 +28,8 @@ def get_newest_df(watchfolder, optional_column_names=[], existing_df=None):
         run_ids = run_ids_from_filenames(files)
         return bc.get_runs_df_from_ids(run_ids, optional_column_names=optional_column_names)
     else:
-        run_ids = list(set().difference(
-            run_ids_from_filenames(files), list(existing_df['run_id'])))
+        run_ids = list(set(run_ids_from_filenames(files)).difference(
+            set(list(existing_df['run_id']))))
         if len(run_ids) > 0:
             return existing_df.append(bc.get_runs_df_from_ids(run_ids,
                                                               optional_column_names=optional_column_names), sort=False)
