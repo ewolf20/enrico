@@ -63,6 +63,40 @@ def getDualImagingAnalysis(eng, filepath,
     except:
         print('matlab wrapper error')
 
+triple_imaging_analyzed_var_names = ['K1_bareNcntAverageMarqueeBoxValues','K2_bareNcntAverageMarqueeBoxValues', 'Na_bareNcntAverageMarqueeBoxValues',
+                              'Na_COMX', 'Na_COMY']
+def getTripleImagingAnalysis(eng, filepaths,
+                           analysis_library_path=r'C:\Users\Fermi1\Documents\GitHub\Fermi1_MatlabImageAnalysis',
+                           marqueeBox=None, normBox=None, save_jpg_preview=True):
+    try:
+        eng.eval(r'cd ' + analysis_library_path, nargout=0)
+        matlab_dict = eng.getTripleImagingZcamAnalysis(filepaths[0],
+                                                    filepaths[1],filepaths[2])
+        # if marqueeBox is None and normBox is None:
+        #     matlab_dict = eng.getMeasNaAnalysis(filepath) #calling MATLAB function getMeasNaAnalysis
+        # else:
+        #     matlab_dict = eng.getMeasNaAnalysis(filepath, 'marqueeBox', marqueeBox, 'normBox', normBox)
+
+        if save_jpg_preview and 'ODimage' in matlab_dict:
+            np_im = numpyfy_MATLABarray(matlab_dict['ODimage'])
+            im = Image.fromarray(np_im)
+            save_filepath = filepath.replace('.spe', '.jpeg')
+            im.save(save_filepath)
+
+        flatten_dict = {'analysis': {}, 'settings' : {}}
+        for key in matlab_dict['K1_analysis']:
+            flatten_dict['analysis']['K1_' +
+                                     key] = matlab_dict['K1_analysis'][key]
+        for key in matlab_dict['K2_analysis']:
+            flatten_dict['analysis']['K2_' +
+                                     key] = matlab_dict['K2_analysis'][key]
+        for key in matlab_dict['Na_analysis']:
+            flatten_dict['analysis']['Na_' +
+                                     key] = matlab_dict['Na_analysis'][key]
+        return flatten_dict #matlab struct object is passed to python as a dictionary, to be parsed in analysis_logger.py
+    except:
+        print('matlab wrapper error')
+
 ##################################################################################################################################
 
 fake_analysis1_var_names = ['fake analysis 1', 'fake analysis 2']

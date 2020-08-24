@@ -90,14 +90,14 @@ def rename_file(filename):
     return rename
 
 
-def main(measurement_name=None, n_images_per_run=None):
+def main(measurement_name=None, n_images_per_run=None, existing_directory_warning = False):
     refresh_time = 1  # seconds
 
     """Name the set of runs"""
     print('existing runs: ')
     print(todays_measurements())
     measurement_dir = measurement_directory(
-        measurement_name=measurement_name, warn=True)
+        measurement_name=measurement_name, warn=existing_directory_warning)
 
     watchfolder = os.getcwd() + '\images'  # feed the program your watchfolder
 
@@ -133,7 +133,12 @@ def main(measurement_name=None, n_images_per_run=None):
         new_names = sorted(names)
 
         # listen to breadboard server for new run_id
-        new_row_dict, _ = get_newest_run_dict()
+        try:
+            new_row_dict, _ = get_newest_run_dict()
+        except:
+            logger.error(sys.exc_info()[1])
+            pass
+
         if new_row_dict['run_id'] != displayed_run_id:
             # print(
             #     'new run_id: ' + str(new_row_dict['run_id']) + '. runtime: ' + str(new_row_dict['runtime']))

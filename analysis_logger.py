@@ -87,12 +87,30 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
             analysis_dict = matlab_dict['analysis']
             settings = None
             return analysis_dict, settings
+    elif analysis_type == 'zcam_triple_imaging':
+        images_per_shot = 3
+        from matlab_wrapper import getTripleImagingAnalysis
+        from matlab_wrapper import triple_imaging_analyzed_var_names as analyzed_var_names
+        def analysis_function(filepath, previous_settings=None):
+            if previous_settings is None:
+                matlab_dict = getTripleImagingAnalysis(eng, filepath)
+    #         else:
+    #             matlab_dict = getMATLABanalysis(eng, filepath, marqueeBox = previous_settings['marqueeBox'],
+    #                                            normBox = previous_settings['normBox'])
+            analysis_dict = matlab_dict['analysis']
+            settings = None
+            return analysis_dict, settings
 
     # wrap analysis_function
     def analyze_image(image_filename, previous_settings=None, output_previous_settings=True):
         # TODO adapt for triple imaging later
-        abs_image_path = os.path.join(os.path.join(
-            os.getcwd(), watchfolder), image_filename)
+        if isinstance(image_filename, str):
+            abs_image_path = os.path.join(os.path.join(
+                os.getcwd(), watchfolder), image_filename)
+        elif isinstance(image_filename, list):
+            abs_image_path = [os.path.join(os.path.join(
+                os.getcwd(), watchfolder), filename) for filename in image_filename]
+        print(abs_image_path)
         logger.debug('{file} analyzing: '.format(file=image_filename))
         analysis_dict, settings = analysis_function(
             abs_image_path, previous_settings)
@@ -180,3 +198,15 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
                 print('\n')
 ################################################################################
         time.sleep(refresh_time)
+
+if __name__ == '__main__':
+    analysis_type = input('Select analysis mode (e.g. zcam_dual_imaging): ')
+    print('existing runs: ')
+    print(todays_measurements())
+    watchfolder = measurement_directory()
+    try:
+        main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1)
+    except KeyboardInterrupt:
+        pass
+    except:
+        enrico_bot.post_message('{folder} analysis crashed.'.format(folder = watchfolder))
