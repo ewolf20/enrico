@@ -1,5 +1,3 @@
-import numpy as np 
-
 def fancy_plot(x, y, fmt='', **kwargs):
     """Wraps around matplotlib.pyplot (aliased to plt) with last-point highlighting and statistics
 
@@ -20,7 +18,7 @@ def fancy_plot(x, y, fmt='', **kwargs):
         ValueError if x and y are not of the same length
     """
 
-
+    import numpy as np 
     import matplotlib.pyplot as plt
     if(len(x) != len(y)):
         raise ValueError("The input x and y arrays must be of the same length.")
@@ -75,4 +73,38 @@ def fancy_plot(x, y, fmt='', **kwargs):
         plt.plot(most_recent_xy_pair[0], most_recent_xy_pair[1], 'dk')
     #Plot and return the errorbar graph with the input kwargs
     return plt.errorbar(final_x_values, final_y_values, final_error_values, fmt = fmt, **kwargs)
+
+
+def load_breadboard_client():
+    """Wraps the breadboard import process
+
+    Uses a system-specific .json config file, stored in the working directory, to import breadboard
+    without hard-coded paths.
+
+    Returns:
+        BreadboardClient object; see breadboard documentation
+    
+    Raises:
+        FileNotFoundError if no .json file exists
+        KeyError if a .json file exists but does not contain the right keys
+        ValueError if the breadboard_repo_path variable in the .json does not lead to a breadboard install
+    """
+
+    import json 
+    import sys 
+    with open("breadboard_path_config.json") as my_file:
+        breadboard_dict = json.load(my_file)
+        breadboard_repo_path = breadboard_dict.get("breadboard_repo_path")
+        if(breadboard_repo_path is None):
+            raise KeyError("The .json config does not contain variable breadboard_repo_path")
+        breadboard_API_config_path = breadboard_dict.get("breadboard_API_config_path")
+        if(breadboard_API_config_path is None):
+            raise KeyError("The .json config does not contain variable breadboard_API_config_path")
+        sys.path.insert(0, breadboard_repo_path)
+        try:
+            from breadboard import BreadboardClient 
+        except ModuleNotFoundError:
+            raise ValueError("Unable to import breadboard using specified value of breadboard_repo_path")
+        bc = BreadboardClient(breadboard_API_config_path)
+    return bc 
 
