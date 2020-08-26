@@ -193,6 +193,8 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
                     analysis_dict = {}
                     warning_message = str(
                         run_id) + 'could not be analyzed. Skipping for now.'
+                    popped_id = [unanalyzed_ids.pop()]
+                    done_ids += popped_id
                     warnings.warn(warning_message)
                     logger.warn(warning_message)
                 print('\n')
@@ -200,10 +202,35 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
         time.sleep(refresh_time)
 
 if __name__ == '__main__':
-    analysis_type = input('Select analysis mode (e.g. zcam_dual_imaging): ')
+    analysis_shorthand = {'zt':'zcam_triple_imaging', 
+    'zd': 'zcam_dual_imaging',
+    'y':'ycam'}
+    print('analysis keys:')
+    print(analysis_shorthand)
+    analysis_key = input('Select analysis (e.g. zd for zcam_dual_imaging): ')
+    analysis_type = analysis_shorthand[analysis_key]
+    print('{analysis} selected'.format(analysis=analysis_type))
     print('existing runs: ')
-    print(todays_measurements())
-    watchfolder = measurement_directory()
+    measurement_names = todays_measurements()
+    if len(measurement_names) == 0:
+        raise ValueError('No measurements yet today.')
+    for name in sorted(measurement_names):
+        if 'run' in name:
+            if 'misplaced' not in name and '.csv' not in name:
+                print(name)
+                last_output = name
+    auto_suggest_name = input('Analyze {name}? [y/n]: '.format(name = last_output))
+    if auto_suggest_name == 'y':
+        watchfolder = measurement_directory(measurement_name = last_output)
+    else:
+        watchfolder = measurement_directory()
+    
+    clean_notebook_path = r'D:\Fermidata1\enrico\log viewer and plotterDUPLICATEANDUSETODAY.ipynb'
+    nb_path = os.path.join(os.path.dirname(watchfolder), 'dailynb.ipynb')
+
+    if not os.path.exists(nb_path):
+        shutil.copy(clean_notebook_path, nb_path)
+        print('no daily notebook, made a duplicate from {path} now.'.format(path = clean_notebook_path))
     try:
         main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1)
     except KeyboardInterrupt:
