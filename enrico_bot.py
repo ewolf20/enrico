@@ -1,7 +1,8 @@
 import json
 import slack
+import os
 
-with open('fermi1bot_config.json') as json_file:
+with open(os.path.abspath(os.path.join(os.path.dirname(__file__), 'fermi1bot_config.json'))) as json_file:
     data = json.load(json_file)
     token = data['token']
 
