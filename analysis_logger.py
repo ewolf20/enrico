@@ -69,15 +69,16 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
 
         def analysis_function(filepath, previous_settings=None):
             if previous_settings is None:
-                matlab_dict = getMATLABanalysis(eng, filepath)
+                matlab_dict = getYcamAnalysis(eng, filepath)
             else:
-                matlab_dict = getMATLABanalysis(eng, filepath, marqueeBox=previous_settings['marqueeBox'],
-                                                normBox=previous_settings['normBox'])
+                matlab_dict = getYcamAnalysis(eng, filepath, marqueeBox=previous_settings['marqueeBox'],
+                                              normBox=previous_settings['normBox'])
             analysis_dict, settings = matlab_dict['analysis'], matlab_dict['settings']
             return analysis_dict, settings
     elif analysis_type == 'zcam_dual_imaging':
         from matlab_wrapper import getDualImagingAnalysis
         from matlab_wrapper import dual_imaging_analyzed_var_names as analyzed_var_names
+
         def analysis_function(filepath, previous_settings=None):
             if previous_settings is None:
                 matlab_dict = getDualImagingAnalysis(eng, filepath)
@@ -91,6 +92,7 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
         images_per_shot = 3
         from matlab_wrapper import getTripleImagingAnalysis
         from matlab_wrapper import triple_imaging_analyzed_var_names as analyzed_var_names
+
         def analysis_function(filepath, previous_settings=None):
             if previous_settings is None:
                 matlab_dict = getTripleImagingAnalysis(eng, filepath)
@@ -103,7 +105,6 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
 
     # wrap analysis_function
     def analyze_image(image_filename, previous_settings=None, output_previous_settings=True):
-        # TODO adapt for triple imaging later
         if isinstance(image_filename, str):
             abs_image_path = os.path.join(os.path.join(
                 os.getcwd(), watchfolder), image_filename)
@@ -137,45 +138,17 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
             continue
         else:
             files, _ = getFileList(watchfolder)
-            # fresh_files = sorted(list(set(files).difference(
-            #     set(done_files)).difference(set(unanalyzed_files))))
-            # unanalyzed_files += fresh_files  # push newest files to top of stack
-
             run_ids = run_ids_from_filenames(files)
             fresh_ids = sorted(list(set(run_ids).difference(
                 set(done_ids)).difference(set(unanalyzed_ids))))
             unanalyzed_ids += fresh_ids
 
-        # for file in reversed(unanalyzed_files):  # start from top of stack
-        #     run_id = run_id_from_filename(file)
-        #     if append_mode:
-        #         run_dict = bc._send_message(
-        #             'get', '/runs/' + str(run_id) + '/').json()
-        #         if set(analyzed_var_names).issubset(set(run_dict.keys())):
-        #             popped_file = [unanalyzed_files.pop()]
-        #             done_files += popped_file
-        #             continue
-
-        # try:
-        #         analysis_dict, previous_settings = analyze_image(
-        #             file, previous_settings)
-        #         popped_file = [unanalyzed_files.pop()]
-        #         done_files += popped_file
-        #     except:
-        #         analysis_dict = {}
-        #         warning_message = str(
-        #             run_id) + 'could not be analyzed. Skipping for now.'
-        #         warnings.warn(warning_message)
-        #         logger.warn(warning_message)
-        #     resp = bc.append_analysis_to_run(run_id, analysis_dict)
-        #     print('\n')
-        
-        ##################################################################
             for run_id in reversed(unanalyzed_ids):  # start from top of stack
                 if images_per_shot == 1:
                     file = '{run_id}_0.spe'.format(run_id=run_id)
-                else: #for adding triple imaging later
-                    file = ['{run_id}_{idx}.spe'.format(run_id=run_id, idx=idx) for idx in range(images_per_shot)]
+                else:  # for triple imaging
+                    file = ['{run_id}_{idx}.spe'.format(
+                        run_id=run_id, idx=idx) for idx in range(images_per_shot)]
                 if append_mode:
                     run_dict = bc._send_message(
                         'get', '/runs/' + str(run_id) + '/').json()
@@ -189,22 +162,27 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
                     popped_id = [unanalyzed_ids.pop()]
                     done_ids += popped_id
                     resp = bc.append_analysis_to_run(run_id, analysis_dict)
-                except:
-                    analysis_dict = {}
+                except:  # if MATLAB analysis fails
+                    analysis_dict = {'badshot': True}
                     warning_message = str(
-                        run_id) + 'could not be analyzed. Skipping for now.'
+                        run_id) + 'could not be analyzed. Marking as bad shot.'
+                    resp = bc.append_analysis_to_run(run_id, analysis_dict)
                     popped_id = [unanalyzed_ids.pop()]
                     done_ids += popped_id
                     warnings.warn(warning_message)
                     logger.warn(warning_message)
+                if resp.status_code != 200:
+                    logger.warning('Upload error: ' + resp.text)
+
                 print('\n')
-################################################################################
+
         time.sleep(refresh_time)
 
+
 if __name__ == '__main__':
-    analysis_shorthand = {'zt':'zcam_triple_imaging', 
-    'zd': 'zcam_dual_imaging',
-    'y':'ycam'}
+    analysis_shorthand = {'zt': 'zcam_triple_imaging',
+                          'zd': 'zcam_dual_imaging',
+                          'y': 'ycam'}
     print('analysis keys:')
     print(analysis_shorthand)
     analysis_key = input('Select analysis (e.g. zd for zcam_dual_imaging): ')
@@ -219,21 +197,24 @@ if __name__ == '__main__':
             if 'misplaced' not in name and '.csv' not in name:
                 print(name)
                 last_output = name
-    auto_suggest_name = input('Analyze {name}? [y/n]: '.format(name = last_output))
+    auto_suggest_name = input(
+        'Analyze {name}? [y/n]: '.format(name=last_output))
     if auto_suggest_name == 'y':
-        watchfolder = measurement_directory(measurement_name = last_output)
+        watchfolder = measurement_directory(measurement_name=last_output)
     else:
         watchfolder = measurement_directory()
-    
+
     clean_notebook_path = r'D:\Fermidata1\enrico\log viewer and plotterDUPLICATEANDUSETODAY.ipynb'
     nb_path = os.path.join(os.path.dirname(watchfolder), 'dailynb.ipynb')
 
     if not os.path.exists(nb_path):
         shutil.copy(clean_notebook_path, nb_path)
-        print('no daily notebook, made a duplicate from {path} now.'.format(path = clean_notebook_path))
+        print('no daily notebook, made a duplicate from {path} now.'.format(
+            path=clean_notebook_path))
     try:
         main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1)
     except KeyboardInterrupt:
         pass
     except:
-        enrico_bot.post_message('{folder} analysis crashed.'.format(folder = watchfolder))
+        enrico_bot.post_message(
+            '{folder} analysis crashed.'.format(folder=watchfolder))
