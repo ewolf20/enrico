@@ -79,3 +79,11 @@ def run_ids_from_filenames(filenames, images_per_shot=1):
         if run_id not in run_ids:
             run_ids.append(run_id)
     return(run_ids)
+
+
+def run_ids_from_txt(run_id_filepath):
+    run_ids = []
+    with open(run_id_filepath, 'r') as file:
+        for line in file:
+            run_ids += int(line.strip())
+    return(run_ids)

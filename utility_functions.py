@@ -13,36 +13,38 @@ def fancy_plot(x, y, fmt='', **kwargs):
 
     Returns:
         ErrorbarContainer, as detailed in the docs for plt.errorbar
-    
+
     Raises:
         ValueError if x and y are not of the same length
     """
 
-    import numpy as np 
+    import numpy as np
     import matplotlib.pyplot as plt
     if(len(x) != len(y)):
-        raise ValueError("The input x and y arrays must be of the same length.")
-    #Filter out the NaNs in either x or y while preserving order
+        raise ValueError(
+            "The input x and y arrays must be of the same length.")
+    # Filter out the NaNs in either x or y while preserving order
     zipped_list = list(zip(x, y))
-    nan_filter = filter(lambda v: ((not np.isnan(v[0])) and (not np.isnan(v[1]))), zipped_list)
+    nan_filter = filter(lambda v: (
+        (not np.isnan(v[0])) and (not np.isnan(v[1]))), zipped_list)
     nan_stripped_list = list(nan_filter)
-    #Pull off the last point so that it can be plotted in a different color
+    # Pull off the last point so that it can be plotted in a different color
     if(len(nan_stripped_list) != 0):
-        most_recent_xy_pair = nan_stripped_list[-1] 
+        most_recent_xy_pair = nan_stripped_list[-1]
         nan_stripped_list = nan_stripped_list[:len(nan_stripped_list) - 1]
     else:
         most_recent_xy_pair = None
-    #Sort the NaN-stripped list to make getting statistics faster for large data
-    sorted_list = sorted(nan_stripped_list, key = (lambda v: v[0]))
-    #Reconstitute to x- and y- lists
+    # Sort the NaN-stripped list to make getting statistics faster for large data
+    sorted_list = sorted(nan_stripped_list, key=(lambda v: v[0]))
+    # Reconstitute to x- and y- lists
     if(len(sorted_list) > 0):
         x_sorted, y_sorted = zip(*sorted_list)
-        sorted_x_list = list(x_sorted) 
+        sorted_x_list = list(x_sorted)
         sorted_y_list = list(y_sorted)
     else:
         sorted_x_list = []
         sorted_y_list = []
-    #Perform statistics and condense repeated measurements
+    # Perform statistics and condense repeated measurements
     index = 0
     final_x_list = []
     final_y_list = []
@@ -57,22 +59,24 @@ def fancy_plot(x, y, fmt='', **kwargs):
         y_array_for_current_x = np.array(y_list_for_current_x)
         y_mean = sum(y_array_for_current_x) / float(len(y_array_for_current_x))
         final_y_list.append(y_mean)
-        #Calculate the standard error of mean if possible
+        # Calculate the standard error of mean if possible
         if(len(y_list_for_current_x) == 1):
             final_error_list.append(np.nan)
         else:
-            variance_estimate = sum(np.square(y_mean - y_array_for_current_x)) / float(len(y_array_for_current_x) - 1)
-            standard_error_of_mean = np.sqrt(variance_estimate / len(y_array_for_current_x))
+            variance_estimate = sum(np.square(
+                y_mean - y_array_for_current_x)) / float(len(y_array_for_current_x) - 1)
+            standard_error_of_mean = np.sqrt(
+                variance_estimate / len(y_array_for_current_x))
             final_error_list.append(standard_error_of_mean)
-    #Convert all lists to np arrays
+    # Convert all lists to np arrays
     final_x_values = np.array(final_x_list)
     final_y_values = np.array(final_y_list)
     final_error_values = np.array(final_error_list)
-    #Plot the most recent point with a hardcoded but distinctive black diamond symbol
+    # Plot the most recent point with a hardcoded but distinctive black diamond symbol
     if(most_recent_xy_pair != None):
         plt.plot(most_recent_xy_pair[0], most_recent_xy_pair[1], 'dk')
-    #Plot and return the errorbar graph with the input kwargs
-    return plt.errorbar(final_x_values, final_y_values, final_error_values, fmt = fmt, **kwargs)
+    # Plot and return the errorbar graph with the input kwargs
+    return plt.errorbar(final_x_values, final_y_values, final_error_values, fmt=fmt, **kwargs)
 
 
 def load_breadboard_client():
@@ -83,28 +87,62 @@ def load_breadboard_client():
 
     Returns:
         BreadboardClient object; see breadboard documentation
-    
+
     Raises:
         FileNotFoundError if no .json file exists
         KeyError if a .json file exists but does not contain the right keys
         ValueError if the breadboard_repo_path variable in the .json does not lead to a breadboard install
     """
 
-    import json 
-    import sys 
-    with open("breadboard_path_config.json") as my_file:
+    import json
+    import sys
+    import os
+    with open(os.path.join(os.path.dirname(__file__), "breadboard_path_config.json")) as my_file:
         breadboard_dict = json.load(my_file)
         breadboard_repo_path = breadboard_dict.get("breadboard_repo_path")
         if(breadboard_repo_path is None):
-            raise KeyError("The .json config does not contain variable breadboard_repo_path")
-        breadboard_API_config_path = breadboard_dict.get("breadboard_API_config_path")
+            raise KeyError(
+                "The .json config does not contain variable breadboard_repo_path")
+        breadboard_API_config_path = breadboard_dict.get(
+            "breadboard_API_config_path")
         if(breadboard_API_config_path is None):
-            raise KeyError("The .json config does not contain variable breadboard_API_config_path")
+            raise KeyError(
+                "The .json config does not contain variable breadboard_API_config_path")
         sys.path.insert(0, breadboard_repo_path)
         try:
-            from breadboard import BreadboardClient 
+            from breadboard import BreadboardClient
         except ModuleNotFoundError:
-            raise ValueError("Unable to import breadboard using specified value of breadboard_repo_path")
+            raise ValueError(
+                "Unable to import breadboard using specified value of breadboard_repo_path")
         bc = BreadboardClient(breadboard_API_config_path)
-    return bc 
+    return bc
 
+
+def get_newest_run_dict(bc):
+    """Gets newest run dictionary containing runtime, run_id, and parameters via breadboard client bc
+    """
+    run_id_guess = bc._send_message(
+        'get', '/runs/', params={'lab': 'fermi1'}).json()['results'][0]['id']
+    while True:
+        run_dict = bc._send_message(
+            'get', '/runs/' + str(run_id_guess) + '/', params={'lab': 'fermi1'}).json()
+        if 'runtime' not in run_dict.keys():
+            new_run_dict = bc._send_message(
+                'get', '/runs/' + str(run_id_guess - 1) + '/').json()
+            new_run_dict_clean = {'runtime': new_run_dict['runtime'],
+                                  'run_id': new_run_dict['id'],
+                                  **new_run_dict['parameters']}
+            return new_run_dict_clean
+        run_id_guess += 1
+
+
+def time_diff_in_sec(runtime_str, trigger_time):
+    """Returns time difference in seconds between trigger time and runtime.
+    Args:
+        runtime_str: The string value from run_dict['runtime'], e.g. from get_newest_run_dict.
+        trigger_time: a datetime object.
+    """
+    import datetime
+    runtime = datetime.datetime.strptime(runtime_str, "%Y-%m-%dT%H:%M:%SZ")
+    time_diff = (runtime - trigger_time)
+    return time_diff.total_seconds()

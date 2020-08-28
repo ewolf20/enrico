@@ -2,9 +2,8 @@ breadboard_repo_path = r'D:\Fermidata1\enrico\breadboard-python-client\\'
 # breadboard_repo_path = r'C:\Users\Alex\Dropbox (MIT)\lab side projects\control software\breadboard-python-client\\'
 import sys
 sys.path.insert(0, breadboard_repo_path)
-import os
 from breadboard import BreadboardClient
-bc = BreadboardClient(config_path=os.path.join(os.path.dirname(__file__),'API_CONFIG_fermi1.json'))
+bc = BreadboardClient(config_path='API_CONFIG_fermi1.json')
 import ipywidgets as widgets
 from measurement_directory import *
 from ipyfilechooser import FileChooser
@@ -24,16 +23,26 @@ table_viewer = widgets.Output(layout={'border': '1px solid black'})
 
 
 def get_newest_df(watchfolder, optional_column_names=[], existing_df=None):
+    run_ids = []
     files, _ = getFileList(watchfolder)
+    files_spe = []
+    for file in files:
+        if '.spe' in file:
+            files_spe += file
+        elif 'run_ids.txt' in file:
+            run_ids += run_ids_from_txt(
+                os.path.abspath(os.path.join(watchfolder, file)))
     if existing_df is None:
-        run_ids = run_ids_from_filenames(files)
+        run_ids += run_ids_from_filenames(files_spe)
         return bc.get_runs_df_from_ids(run_ids, optional_column_names=optional_column_names)
     else:
-        run_ids = list(set(run_ids_from_filenames(files)).difference(
+        run_ids = list(set(run_ids_from_filenames(files_spe).union(set(run_ids))).difference(
             set(list(existing_df['run_id']))))
         if len(run_ids) > 0:
             return existing_df.append(bc.get_runs_df_from_ids(run_ids,
-                                                              optional_column_names=optional_column_names), sort=False, ignore_index = True)
+                                                              optional_column_names=optional_column_names),
+                                      sort=False,
+                                      ignore_index=True)
         else:
             return existing_df
 
@@ -69,18 +78,11 @@ def save_image_log(event, qgrid_widget):
 
 def load_image_log(watchfolder, optional_column_names=[]):
     try:
-        # existing_df = load_qgrid.loaded_qgrid.get_changed_df()
-        existing_df = load_qgrid.loaded_qgrid.get_changed_df().dropna() #quick and dirty method to refresh rows without analysis
+        existing_df = load_qgrid.loaded_qgrid.get_changed_df()
     except:
         existing_df = None
-    try:
-        if watchfolder != load_image_log.previous_watchfolder:
-            existing_df = None
-    except:
-        pass
     df = get_newest_df(
         watchfolder, optional_column_names=optional_column_names, existing_df=existing_df)
-    load_image_log.previous_watchfolder = watchfolder
     # for testing
     # df = bc.get_runs_df_from_ids([219153, 219151],
     #                              optional_column_names=optional_column_names)
@@ -119,13 +121,6 @@ def refresh_qgrid(b):
 refresh_button = widgets.Button(description='refresh')
 refresh_button.on_click(refresh_qgrid)
 
-def close_qgrid(b):
-    load_qgrid.loaded_qgrid.close()
-
-
-close_button = widgets.Button(description='close')
-close_button.on_click(close_qgrid)
-
 
 def export_qgrid(b):
     df = load_qgrid.loaded_qgrid.get_changed_df()
@@ -135,7 +130,7 @@ def export_qgrid(b):
 
 export_button = widgets.Button(description='export')
 export_button.on_click(export_qgrid)
-display(widgets.HBox([load_button, refresh_button, close_button, export_button]))
+display(widgets.HBox([load_button, refresh_button, export_button]))
 
 
 optional_columns_widget = widgets.Select(

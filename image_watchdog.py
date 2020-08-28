@@ -99,7 +99,7 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
     measurement_dir = measurement_directory(
         measurement_name=measurement_name, warn=existing_directory_warning)
 
-    watchfolder = os.getcwd() + '\images'  # feed the program your watchfolder
+    watchfolder = os.getcwd() + r'\images'  # feed the program your watchfolder
 
     names_old, paths_old = getFileList(watchfolder)
     if n_images_per_run is None:
