@@ -23,16 +23,26 @@ table_viewer = widgets.Output(layout={'border': '1px solid black'})
 
 
 def get_newest_df(watchfolder, optional_column_names=[], existing_df=None):
+    run_ids = []
     files, _ = getFileList(watchfolder)
+    files_spe = []
+    for file in files:
+        if '.spe' in file:
+            files_spe += file
+        elif 'run_ids.txt' in file:
+            run_ids += run_ids_from_txt(
+                os.path.abspath(os.path.join(watchfolder, file)))
     if existing_df is None:
-        run_ids = run_ids_from_filenames(files)
+        run_ids += run_ids_from_filenames(files_spe)
         return bc.get_runs_df_from_ids(run_ids, optional_column_names=optional_column_names)
     else:
-        run_ids = list(set(run_ids_from_filenames(files)).difference(
+        run_ids = list(set(run_ids_from_filenames(files_spe).union(set(run_ids))).difference(
             set(list(existing_df['run_id']))))
         if len(run_ids) > 0:
             return existing_df.append(bc.get_runs_df_from_ids(run_ids,
-                                                              optional_column_names=optional_column_names), sort=False)
+                                                              optional_column_names=optional_column_names),
+                                      sort=False,
+                                      ignore_index=True)
         else:
             return existing_df
 

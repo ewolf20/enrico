@@ -46,7 +46,7 @@ warnings.filterwarnings(
 bc = BreadboardClient(config_path='API_CONFIG_fermi1.json')
 
 
-def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
+def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_images=True):
     refresh_time = 1  # seconds
     print("\n\n Watching this folder for changes: " + watchfolder + "\n\n")
 
@@ -174,6 +174,23 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1):
                 if resp.status_code != 200:
                     logger.warning('Upload error: ' + resp.text)
 
+                if not save_images:  # delete images and add run_ids to .txt file after analysis if in testing mode
+                    if isinstance(file, str):
+                        filepath = os.path.join(watchfolder, file)
+                        os.remove(filepath)
+                        logger.debug(
+                            'save_images is False, file {file} deleted after analysis.'.format(file=filepath))
+                    elif isinstance(file, list):
+                        for f in file:
+                            filepath = os.path.join(watchfolder, f)
+                            os.remove(filepath)
+                            logger.debug(
+                                'save_images is False, file {file} deleted after analysis.'.format(file=filepath))
+                    with open(os.path.join(watchfolder, 'run_ids.txt'), 'a') as run_ids_file:
+                        run_ids_file.write(str(popped_id) + '\n')
+                        logger.debug('Run_id {id} added to {file}.'.format(
+                            id=str(popped_id), file=os.path.join(watchfolder, 'run_ids.txt')))
+
                 print('\n')
 
         time.sleep(refresh_time)
@@ -203,6 +220,12 @@ if __name__ == '__main__':
         watchfolder = measurement_directory(measurement_name=last_output)
     else:
         watchfolder = measurement_directory()
+    save_images = True
+    save_images_input = input('Keep images after analysis? [y/n]: '
+                              )
+    if save_images_input == 'n':
+        print('entering testing mode...')
+        save_images = False
 
     clean_notebook_path = r'D:\Fermidata1\enrico\log viewer and plotterDUPLICATEANDUSETODAY.ipynb'
     nb_path = os.path.join(os.path.dirname(watchfolder), 'dailynb.ipynb')
@@ -212,7 +235,8 @@ if __name__ == '__main__':
         print('no daily notebook, made a duplicate from {path} now.'.format(
             path=clean_notebook_path))
     try:
-        main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1)
+        main(analysis_type, watchfolder, load_matlab=True,
+             images_per_shot=1, save_images=save_images)
     except KeyboardInterrupt:
         pass
     except:
