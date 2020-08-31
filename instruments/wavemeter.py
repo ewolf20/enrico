@@ -47,7 +47,8 @@ def main():
     wlm = WavelengthMeter() #Initialize a wavemeter object
     initial_frequency = wlm.GetFrequency()
     if(initial_frequency <= 0):
-        print("Unable to get wavemeter frequency. Check wavemeter.")
+        print("Unable to get wavemeter frequency. Check wavemeter. Program aborted.")
+        enrico_bot.post_message('RESTART THE WAVEMETER.PY PROGRAM.')
         exit(-1)
     wavemeter_backlog = OrderedDict()
     max_length = 30
@@ -67,6 +68,7 @@ def main():
                     time.sleep(0.1)
                 if(fail_counter >= STRIKES_YOURE_OUT):
                     enrico_bot.post_message("Wavemeter is not reading correctly. Breadboard sync aborted.")
+                    enrico_bot.post_message('RESTART THE WAVEMETER.PY PROGRAM.')
                     exit(-1) #Todo: Handle this more gracefully!!!
         wavemeter_backlog[datetime.datetime.today()] = wavemeter_reading
         print('wavemeter reading: {reading}'.format(
