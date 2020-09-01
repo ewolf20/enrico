@@ -37,17 +37,18 @@ ALLOWED_FREQUENCY_CHANGE = 0.001 #Amount to allow frequency to change before thr
 
 def main():
     refresh_time = 1  # seconds
-    print("Did you remember to sync the clocks?")
-    print('Reading wavemeter... \n')
+    print("Did you remember to sync the os clock to a web server?")
+    print('Reading wavemeter, readings will output below ... \n')
     old_run_dict = get_newest_run_dict(bc)
     old_run_id = old_run_dict['run_id']
     print("Initial run ID: " + str(old_run_id))
     time_warned = False
     frequency_warned = False
+    wavemeter_error_warned = False
     wlm = WavelengthMeter() #Initialize a wavemeter object
     initial_frequency = wlm.GetFrequency()
     if(initial_frequency <= 0):
-        print("Unable to get wavemeter frequency. Check wavemeter.")
+        print("Unable to get wavemeter frequency. Check wavemeter. Program aborted.")
         exit(-1)
     wavemeter_backlog = OrderedDict()
     max_length = 30
@@ -59,15 +60,21 @@ def main():
                 wavemeter_reading = wlm.GetFrequency()
                 successful_read = (wavemeter_reading > 0) #GetFrequency returns nonpositive error codes
                 if(not successful_read):
-                    if(wavemeter_reading == -4): #Overexposed
-                        pass
-                    if(wavemeter_reading == -3): #Underexposed
-                        pass
                     fail_counter += 1
                     time.sleep(0.1)
                 if(fail_counter >= STRIKES_YOURE_OUT):
-                    enrico_bot.post_message("Wavemeter is not reading correctly. Breadboard sync aborted.")
-                    exit(-1) #Todo: Handle this more gracefully!!!
+                    if(wavemeter_reading == -4): #Overexposed
+                        print('wavemeter.py terminating due to overexposure. \n')
+                        enrico_bot.post_message('Wavemeter overexposed, wavemeter.py terminated. Restart if taking data.')
+                        exit(-1) #Todo: Handle this more gracefully!!!
+                    if(wavemeter_reading == -3): #Underexposed
+                        warning_message = 'Wavemeter underexposed, adjust exposure time.'
+                        print(warning_message)
+                        if not wavemeter_error_warned:
+                            enrico_bot.post_message(warning_message)
+                            wavemeter_error_warned = True
+                        fail_counter = 0 #keep trying, underexposure is safe for wavemeter
+                    
         wavemeter_backlog[datetime.datetime.today()] = wavemeter_reading
         print('wavemeter reading: {reading}'.format(
             reading=str(wavemeter_reading)))
@@ -121,7 +128,7 @@ def main():
                     enrico_bot.post_message(warning_message)
                     time_warned = True
             if(np.abs(initial_frequency - wavemeter_reading) > ALLOWED_FREQUENCY_CHANGE and (not frequency_warned)):
-                enrico_bot.post_message("Wavemeter reading has changed by 1 GHz after run id: " + str(new_run_id))
+                enrico_bot.post_message("Wavemeter reading has changed by 1 GHz after run id: {id}. Check laser lock.".format(id = str(new_run_id)))
                 frequency_warned = True
 
         # Wait before checking again
