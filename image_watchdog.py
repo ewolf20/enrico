@@ -5,16 +5,14 @@ Otherwise, they are moved to MM/YYMMDD/run_idx_name_misplaced.
 A debugging log is created in the MM/YYMMDD with info to manually associate files that failed to match.
 '''
 # import latest version of breadboard from github, rather than using the pip install.
-breadboard_repo_path = r'D:\Fermidata1\enrico\breadboard-python-client\\'
-
 import os
 import time
 import datetime
 import shutil
 import posixpath
 import sys
-sys.path.insert(0, breadboard_repo_path)
-from breadboard import BreadboardClient
+from utility_functions import load_breadboard_client
+bc = load_breadboard_client()
 import warnings
 import pandas as pd
 from measurement_directory import *
@@ -36,7 +34,6 @@ warnings.filterwarnings(
     "ignore", "Your application has authenticated using end user credentials")
 warnings.filterwarnings(
     "ignore", "Could not find appropriate MS Visual C Runtime")
-bc = BreadboardClient(config_path='API_CONFIG_fermi1.json')
 
 
 def getFileList(folder=os.getcwd()):
@@ -99,7 +96,7 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
     measurement_dir = measurement_directory(
         measurement_name=measurement_name, warn=existing_directory_warning)
 
-    watchfolder = os.getcwd() + r'\images'  # feed the program your watchfolder
+    watchfolder = os.path.join(os.getcwd(), 'images')  # feed the program your watchfolder
 
     names_old, paths_old = getFileList(watchfolder)
     if n_images_per_run is None:

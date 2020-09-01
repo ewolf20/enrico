@@ -1,19 +1,15 @@
-breadboard_repo_path = r'D:\Fermidata1\enrico\breadboard-python-client\\'
 import ipywidgets as widgets
 from ipywidgets import interact
 from measurement_directory import *
 import sys
-sys.path.insert(0, breadboard_repo_path)
-from breadboard import BreadboardClient
-# enter your path to the API_config
-bc = BreadboardClient(config_path='API_CONFIG_fermi1.json')
+from utility_functions import load_breadboard_client
+bc = load_breadboard_client()
 import os
 import time
 import datetime
 import shutil
 import warnings
 import enrico_bot
-from image_watchdog import getFileList
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -43,7 +39,6 @@ warnings.filterwarnings(
     "ignore", "Your application has authenticated using end user credentials")
 warnings.filterwarnings(
     "ignore", "Could not find appropriate MS Visual C Runtime")
-bc = BreadboardClient(config_path='API_CONFIG_fermi1.json')
 
 
 def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_images=True):
@@ -106,11 +101,9 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_i
     # wrap analysis_function
     def analyze_image(image_filename, previous_settings=None, output_previous_settings=True):
         if isinstance(image_filename, str):
-            abs_image_path = os.path.join(os.path.join(
-                os.getcwd(), watchfolder), image_filename)
+            abs_image_path = os.path.join(os.path.abspath(watchfolder), image_filename)
         elif isinstance(image_filename, list):
-            abs_image_path = [os.path.join(os.path.join(
-                os.getcwd(), watchfolder), filename) for filename in image_filename]
+            abs_image_path = [os.path.join(os.path.abspath(watchfolder), filename) for filename in image_filename]
         print(abs_image_path)
         logger.debug('{file} analyzing: '.format(file=image_filename))
         analysis_dict, settings = analysis_function(
@@ -137,7 +130,12 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_i
             time.sleep(refresh_time)
             continue
         else:
-            files, _ = getFileList(watchfolder)
+            files = [filename for filename in os.listdir(watchfolder)]
+            filesSPE = []
+            for file in files: #filter out non .spe files
+                if '.spe' in file:
+                    filesSPE.append(file)
+            files = filesSPE
             run_ids = run_ids_from_filenames(files)
             fresh_ids = sorted(list(set(run_ids).difference(
                 set(done_ids)).difference(set(unanalyzed_ids))))
@@ -187,9 +185,9 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_i
                             logger.debug(
                                 'save_images is False, file {file} deleted after analysis.'.format(file=filepath))
                     with open(os.path.join(watchfolder, 'run_ids.txt'), 'a') as run_ids_file:
-                        run_ids_file.write(str(popped_id) + '\n')
+                        run_ids_file.write(str(popped_id[0]) + '\n')
                         logger.debug('Run_id {id} added to {file}.'.format(
-                            id=str(popped_id), file=os.path.join(watchfolder, 'run_ids.txt')))
+                            id=str(popped_id[0]), file=os.path.join(watchfolder, 'run_ids.txt')))
 
                 print('\n')
 
@@ -240,5 +238,9 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     except:
-        enrico_bot.post_message(
-            '{folder} analysis crashed.'.format(folder=watchfolder))
+        warning_message = '{folder} analysis crashed: '.format(folder=watchfolder) + 'Error: {}. {}, line: {}'.format(sys.exc_info()[0],
+                                         sys.exc_info()[1],
+                                         sys.exc_info()[2].tb_lineno)
+        # enrico_bot.post_message(warning_message)
+
+        print(warning_message)

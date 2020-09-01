@@ -85,5 +85,5 @@ def run_ids_from_txt(run_id_filepath):
     run_ids = []
     with open(run_id_filepath, 'r') as file:
         for line in file:
-            run_ids += int(line.strip())
+            run_ids.append(int(line.strip()))
     return(run_ids)
