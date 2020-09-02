@@ -13,7 +13,9 @@ def numpyfy_MATLABarray(matlab_array):
 
 
 ycam_analyzed_var_names = ['bareNcntAverageMarqueeBoxValues',
-                           'COMX', 'COMY']
+                           'COMX', 'COMY', 'xTFinsitu_pix', 'yTFinsitu_pix',
+                           'chem_potential_kHz', 'N_condensate',
+                           'xTF_afterToF', 'yTF_afterToF']
 
 
 def getYcamAnalysis(eng, filepath,
@@ -22,10 +24,10 @@ def getYcamAnalysis(eng, filepath,
     try:
         eng.eval(r'cd ' + analysis_library_path, nargout=0)
         if marqueeBox is None and normBox is None:
-            # calling MATLAB function getMeasNaAnalysis
-            matlab_dict = eng.getMeasNaAnalysis(filepath)
+            # calling MATLAB function
+            matlab_dict = eng.getYcamAnalysis(filepath)
         else:
-            matlab_dict = eng.getMeasNaAnalysis(
+            matlab_dict = eng.getYcamAnalysis(
                 filepath, 'marqueeBox', marqueeBox, 'normBox', normBox)
 
         if save_jpg_preview and 'ODimage' in matlab_dict:

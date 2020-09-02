@@ -111,10 +111,12 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_i
         if not output_previous_settings:
             settings = None  # forces user to select new marquee box for each shot
         cleaned_analysis_dict = {}
+        print('\n')        
         for key in analyzed_var_names:
             cleaned_analysis_dict[key] = analysis_dict[key]
             print(key, analysis_dict[key])
 #             logger.debug(key, analysis_dict[key])
+        print('\n')
         return cleaned_analysis_dict, settings
 
     previous_settings = None
@@ -226,6 +228,8 @@ if __name__ == '__main__':
         save_images = False
 
     clean_notebook_path = r'D:\Fermidata1\enrico\log viewer and plotterDUPLICATEANDUSETODAY.ipynb'
+    if analysis_key == 'y':
+        clean_notebook_path = r'C:\Users\FermiCam2\Desktop\GitHub\enrico\log viewer and plotterDUPLICATEANDUSETODAY.ipynb'
     nb_path = os.path.join(os.path.dirname(watchfolder), 'dailynb.ipynb')
 
     if not os.path.exists(nb_path):
