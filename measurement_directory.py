@@ -11,7 +11,7 @@ def measurement_directory(warn=False, measurement_name=None):
         measurement_name = 'run' + measurement_idx + '_' + \
             input('Enter name for run: ')
     today = datetime.datetime.today()
-    month = datetime.datetime.strftime(today, '%m')
+    month = datetime.datetime.strftime(today, '%Y%m')
     date = datetime.datetime.strftime(today, '%y%m%d')
     if not os.path.exists(month):
         os.mkdir(month)
