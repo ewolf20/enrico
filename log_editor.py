@@ -81,6 +81,7 @@ def load_image_log(watchfolder, optional_column_names=[]):
     try:
         if watchfolder != load_image_log.old_watchfolder:
             existing_df = None
+            load_qgrid.loaded_qgrid.close()
     except:
         pass
     df = get_newest_df(
@@ -124,11 +125,11 @@ def refresh_qgrid(b):
 refresh_button = widgets.Button(description='refresh')
 refresh_button.on_click(refresh_qgrid)
 
-def close_qgrid(b):
-    load_qgrid.loaded_qgrid.close()
+# def close_qgrid(b):
+#     load_qgrid.loaded_qgrid.close()
 
-close_button = widgets.Button(description='close')
-close_button.on_click(close_qgrid)
+# close_button = widgets.Button(description='close')
+# close_button.on_click(close_qgrid)
 
 def export_qgrid(b):
     df = load_qgrid.loaded_qgrid.get_changed_df()
@@ -138,7 +139,8 @@ def export_qgrid(b):
 
 export_button = widgets.Button(description='export')
 export_button.on_click(export_qgrid)
-display(widgets.HBox([load_button, refresh_button, close_button, export_button]))
+# display(widgets.HBox([load_button, refresh_button, close_button, export_button]))
+display(widgets.HBox([load_button, refresh_button, export_button]))
 
 
 optional_columns_widget = widgets.Select(
