@@ -14,6 +14,10 @@ import warnings
 import matplotlib.cbook
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
+def get_key(my_dict, val): 
+    for key, value in my_dict.items(): 
+         if val == value: 
+             return key
 
 class MSerial:
     axis_names = dict(x=0, y=1)
@@ -31,10 +35,14 @@ class MSerial:
         self.recvwidget = recvwidget
         self.history = {}
         for idx in range(1, 4):
-            self.history['driver{idx}'.format(
-                idx=str(idx))] = {'m{idx}'.format(
-                    idx=str(idx)): OrderedDict() for idx in range(0, 3)}
+            self.history[str(idx)] = {str(idx): OrderedDict() for idx in range(0, 3)}
         self.MAX_LENGTH = 1e3
+        self.aliases = {'TiSa horiz': (1,0), 
+                        'CODT horiz': (1,1), 'CODT vert': (1,2),
+                        'DShape': (2,0),
+                        'downleg vert': (3,0), 'downleg horiz': (3,1),
+                        'flex':(3,2),
+                        }
 
     def send(self, cmd):
         """Send a command to the picomotor driver."""
@@ -67,8 +75,8 @@ class MSerial:
     def update_motor_history(self, driver_idx, motor_idx, step_size):
         # TODO
 
-        driver_key = 'driver{i}'.format(i=str(driver_idx))
-        motor_key = 'm{i}'.format(i=str(motor_idx))
+        driver_key = str(driver_idx)
+        motor_key = str(motor_idx)
         # time_now = datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
         time_now = datetime.datetime.today()
         self.history[driver_key][motor_key][time_now] = step_size
@@ -76,16 +84,23 @@ class MSerial:
             self.history[driver_key][motor_key].popitem(last=False)
         print(time_now)
 
-    def move(self, driver_idx, motor_idx, step_size):
+    def move(self, alias = None, step_size = None):
+        if alias is None:
+            print('Named driver ports include {ports}'.format(ports=str(self.aliases.keys())))
+            alias = input('Enter name: ')
+        if step_size is None:
+            step_size = int(input('Enter step size: '))
+        driver_idx, motor_idx = self.aliases[alias]
         time.sleep(self.wait)
         active_motor_cmd = 'chl a{driver}={motor}'.format(driver=str(driver_idx), motor=str(motor_idx))
         self.sendrecv(active_motor_cmd)
         time.sleep(self.wait)
         move_cmd = 'rel {driver} {step} g'.format(driver=str(driver_idx), step=str(step_size))
         self.sendrecv(move_cmd)
-        print('motor {motor} on driver a{driver} moved {step} steps'.format(motor=str(motor_idx),
+        print('{alias} (motor {motor} on driver a{driver}) moved {step} steps'.format(motor=str(motor_idx),
                                                                             driver=str(driver_idx), 
-                                                                            step=str(step_size)))
+                                                                            step=str(step_size),
+                                                                            alias=alias))
         self.update_motor_history(driver_idx, motor_idx, step_size)
         
     def status_msg(self):
@@ -121,7 +136,8 @@ class MSerial:
                 plt.subplot(len(self.history), 2, i)
                 x_data = list(self.history[driver_key][motor_key].keys())
                 y_data = np.cumsum(list(self.history[driver_key][motor_key].values()))
-                plt.plot(x_data, y_data, marker = 'o', linestyle='dashed', label=str(driver_key) + str(motor_key))
+                label = get_key(self.aliases, (int(driver_key), int(motor_key)))
+                plt.plot(x_data, y_data, marker = 'o', linestyle='dashed', label=label)
 
                 plt.legend(loc='best')
                 plt.xlabel('time (TODO: formatting)')
@@ -135,7 +151,8 @@ class MSerial:
                 plt.subplot(len(self.history), 2, i)
                 x_data = list(self.history[driver_key][motor_key].keys())
                 y_data = list(self.history[driver_key][motor_key].values())
-                plt.plot(x_data, y_data, marker = 'o', linestyle='dotted', label=str(driver_key) + str(motor_key))
+                label = get_key(self.aliases, (int(driver_key), int(motor_key)))
+                plt.plot(x_data, y_data, marker = 'o', linestyle='dotted', label=label)
                 plt.legend(loc='best')
                 plt.xlabel('time (TODO: formatting)')
                 plt.ylabel('step size')
@@ -150,4 +167,4 @@ class MSerial:
 
 
 picomotor = MSerial('COM4')
-print('\n INFO: picomotor has methods picomotor.move(driver_idx, motor_idx, step_size), picomotor.plot_positions() \n')
+print('\n INFO: picomotor has methods picomotor.move(alias=ALIAS_HERE, step_size=STEP_SIZE_HERE), picomotor.plot_positions(). \n move() called without args will require further manual input \n \n Try something like picomotor.move(alias=\'flex\',step_size=5) or picomotor.move() \n')
