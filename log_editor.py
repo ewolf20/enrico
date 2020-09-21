@@ -12,6 +12,10 @@ import pandas as pd
 from numpy import nan
 import json
 import numpy as np
+import warnings
+import matplotlib.cbook
+warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
+
 
 filechooser_widget = FileChooser(os.getcwd())
 filechooser_widget.show_only_dirs = True
