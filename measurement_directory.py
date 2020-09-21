@@ -3,6 +3,7 @@ import datetime
 import shutil
 import parse
 
+MONTH_DIR_FMT = '%Y%m'
 
 def measurement_directory(warn=False, measurement_name=None):
     # name the run test if you want test files to be cleaned up later
@@ -11,7 +12,7 @@ def measurement_directory(warn=False, measurement_name=None):
         measurement_name = 'run' + measurement_idx + '_' + \
             input('Enter name for run: ')
     today = datetime.datetime.today()
-    month = datetime.datetime.strftime(today, '%Y%m')
+    month = datetime.datetime.strftime(today, MONTH_DIR_FMT)
     date = datetime.datetime.strftime(today, '%y%m%d')
     if not os.path.exists(month):
         os.mkdir(month)
@@ -44,7 +45,7 @@ def measurement_directory(warn=False, measurement_name=None):
 
 def move_misplaced_images():
     today = datetime.datetime.today()
-    month = datetime.datetime.strftime(today, '%m')
+    month = datetime.datetime.strftime(today, MONTH_DIR_FMT)
     date = datetime.datetime.strftime(today, '%y%m%d')
     time_now = datetime.datetime.strftime(today, '%H%M%S')
     misplaced_filepath = month + r'\\' + date + r'\\misplacedimages' + time_now
@@ -56,7 +57,7 @@ def move_misplaced_images():
 def todays_measurements():
     # name the run test if you want test files to be cleaned up later
     today = datetime.datetime.today()
-    month = datetime.datetime.strftime(today, '%m')
+    month = datetime.datetime.strftime(today, MONTH_DIR_FMT)
     date = datetime.datetime.strftime(today, '%y%m%d')
     if not os.path.exists(r'{month}\{date}'.format(month=month, date=date)):
         os.mkdir(r'{month}\{date}'.format(month=month, date=date))
