@@ -1,17 +1,20 @@
-import os
-import sys
-main_path = os.path.abspath(os.path.join(__file__, '../..'))
-sys.path.insert(0, main_path)
-# import enrico_bot
+# import os
+# import sys
+# main_path = os.path.abspath(os.path.join(__file__, '../..'))
+# sys.path.insert(0, main_path)
 import visa
 import numpy as np
 import pandas as pd
 from status_monitor import StatusMonitor
 import time
+import parse
 
-# rm = visa.ResourceManager('C:\\Windows\\System32\\visa64.dll')
+rm = visa.ResourceManager('C:\\Windows\\System32\\visa64.dll')
 USER_REQUESTED_POINTS = 1000
 GLOBAL_TOUT = 10000
+
+scope_visa_addresses = {'near laser tables':"TCPIP0::192.168.1.9::inst0::INSTR",
+                        'near control PC':"TCPIP0::192.168.1.11::inst0::INSTR"}
 
 
 class Oscilloscope():
@@ -378,7 +381,8 @@ class Oscilloscope():
         self.scope_obj.write(':RUN')
         self.scope_obj.clear()
         #TODO check if a time column is the 0th column of Wav_Data
-        columns = ['time'] + ['ch{idx} ({unit})'.format(idx=str(i+1), 
+        #TODO standardize units to be V (not mV)
+        columns = ['time'] + ['ch{idx}_{unit}'.format(idx=str(i+1), 
                                              unit=str(CH_UNITS[i])) 
                     for i in range(len(CH_UNITS))]
         scope_traces = pd.DataFrame(Wav_Data, 
@@ -407,6 +411,7 @@ class LockDetector(StatusMonitor):
         else:
             self.channel = channel
         self.refresh_time = refresh_time
+        self.name = input('What laser are you monitoring? e.g. dye or TiSa')
 
     def main(self):
         with self.scope as scope:
@@ -415,13 +420,21 @@ class LockDetector(StatusMonitor):
                 for column in scope_traces.columns:
                     if 'ch{idx}'.format(idx=str(self.channel)) in column:
                         lock_trace = np.array(scope_traces.column)
+                        break
+                _, unit = parse.parse('{}_in_{}', column)
+                lock_dict = {'{name}lockPDmin_in_{unit}'.format(name = self.name, unit=unit): np.min(lock_trace),
+                             '{name}lockPDmax_in_{unit}'.format(name = self.name, unit=unit): np.max(lock_trace),
+                             '{name}lockPDmean_in_{unit}'.format(name = self.name, unit=unit): np.mean(lock_trace)}
                 if np.min(lock_trace) < self.low_level:
-                    warn_on_slack('')
-
+                    self.warn_on_slack('{name} laser out of lock'.format(name=self.name))
+                else:
+                    print(lock_dict)
+                    print('{name} laser locked'.format(name=self.name))
+                self.append_to_backlog(lock_dict)
+                self.upload_to_breadboard() 
                 time.sleep(self.refresh_time)
 
-
-
-    
-
-        
+#testing code
+with Oscilloscope(visa_address=scope_visa_addresses['near laser tables']) as scope:
+    scope_traces = scope.acquire_traces()
+    scope.plot_traces(scope_traces)
