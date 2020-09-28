@@ -29,7 +29,7 @@ class StatusMonitor:
             self.backlog.popitem(last=False)
 
         time_now = datetime.datetime.today()
-        self.backlog[time_now] = value
+        self.backlog[time_now] = values_dict
         print('Logged {value} at {time_now}'.format(value=str(values_dict),
                                                     time_now=str(time_now)))
 
