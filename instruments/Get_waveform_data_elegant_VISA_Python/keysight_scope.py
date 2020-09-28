@@ -6,6 +6,8 @@ sys.path.insert(0, main_path)
 import visa
 import numpy as np
 import pandas as pd
+from status_monitor import StatusMonitor
+import time
 
 # rm = visa.ResourceManager('C:\\Windows\\System32\\visa64.dll')
 USER_REQUESTED_POINTS = 1000
@@ -375,7 +377,8 @@ class Oscilloscope():
         # Done with scope operations - resume scope live mode
         self.scope_obj.write(':RUN')
         self.scope_obj.clear()
-        columns = ['ch{idx} ({unit})'.format(idx=str(i+1), 
+        #TODO check if a time column is the 0th column of Wav_Data
+        columns = ['time'] + ['ch{idx} ({unit})'.format(idx=str(i+1), 
                                              unit=str(CH_UNITS[i])) 
                     for i in range(len(CH_UNITS))]
         scope_traces = pd.DataFrame(Wav_Data, 
@@ -384,4 +387,41 @@ class Oscilloscope():
 
     @staticmethod
     def plot_traces(scope_traces):
+        plt.close('all')
+        i = 1
+        for column in scope_traces.columns:
+            if column == 'time':
+                continue
+            plt.subplot(len(scope_traces) - 1, 1, i)
+            plt.plot(scope_traces.time, scope_traces.column)
+        plt.show()
+
+class LockDetector(StatusMonitor):
+    """docstring for LockDetector"""
+    def __init__(self, visa_address, low_level, channel = None, refresh_time = 5):
+        super.__init__()
+        self.scope = Oscilloscope(visa_address)
+        self.low_level = low_level
+        if channel is None:
+            self.channel = int(input('Which channel is the lock signal on? '))
+        else:
+            self.channel = channel
+        self.refresh_time = refresh_time
+
+    def main(self):
+        with self.scope as scope:
+            while True:
+                scope_traces = scope.acquire_traces()
+                for column in scope_traces.columns:
+                    if 'ch{idx}'.format(idx=str(self.channel)) in column:
+                        lock_trace = np.array(scope_traces.column)
+                if np.min(lock_trace) < self.low_level:
+                    warn_on_slack('')
+
+                time.sleep(self.refresh_time)
+
+
+
+    
+
         
