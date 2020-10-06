@@ -404,39 +404,45 @@ class Oscilloscope():
 
 class LockDetector(StatusMonitor):
     """docstring for LockDetector"""
-    def __init__(self, visa_address, channel = None, refresh_time = 5):
+    def __init__(self, visa_address, lock_channels = None, refresh_time = 5):
+        #lock_channels is a dict of {channel_idx:{'laser':LASERNAME, 'low_level':LOWLEVEL}}
         StatusMonitor.__init__(self)
         self.scope = Oscilloscope(visa_address)
-        self.low_level = float(input('Enter low level in volts: '))
-        if channel is None:
-            self.channel = int(input('Which channel is the lock signal on? '))
-        else:
-            self.channel = channel
+        if lock_channels is None:
+            done, self.lock_channels = None, {}
+            while done != 'y':
+                channel = int(input('Which channel is the lock signal on? '))
+                laser_name = input('What laser are you monitoring? e.g. dye or TiSa ')
+                low_level = float(input('Enter low level in volts: '))
+                self.lock_channels[channel] = {'laser':laser_name,
+                                               'low_level':low_level}
+                done = input('Done? [y/n]: ')
         self.refresh_time = refresh_time
-        self.name = input('What laser are you monitoring? e.g. dye or TiSa ')
 
     def main(self):
         i=0
         with self.scope as scope:
             while True:
                 scope_traces = scope.acquire_traces()
-                for column in scope_traces.columns:
-                    if 'ch{idx}'.format(idx=str(self.channel)) in column:
-                        lock_trace = np.array(scope_traces[column])
-                        break
-                _, unit = parse.parse('{}_in_{}', column)
-                lock_dict = {'{name}lockPDmin_in_{unit}'.format(name = self.name, unit=unit): np.min(lock_trace),
-                             '{name}lockPDmax_in_{unit}'.format(name = self.name, unit=unit): np.max(lock_trace),
-                             '{name}lockPDmean_in_{unit}'.format(name = self.name, unit=unit): np.mean(lock_trace)}
-                if np.min(lock_trace) < self.low_level:
-                    self.warn_on_slack('{name} laser out of lock'.format(name=self.name))
-                else:
-                    print(lock_dict)
-                    print('{name} laser locked'.format(name=self.name))
-                self.append_to_backlog(lock_dict)
+                for chl_idx in self.lock_channels.keys():
+                    for column_name in scope_traces.columns:
+                        if 'ch{idx}'.format(idx=str(idx)) in column_name:
+                            break #set column_name to ch{idx}_in_{unit}
+                    lock_trace = np.array(scope_traces[column_name])
+                    laser_name = self.lock_channels[chl_idx]['laser']
+                    low_level = self.lock_channels[chl_idx]['low_level']
+                    _, unit = parse.parse('{}_in_{}', column_name)
+                    lock_dict = {'{name}lockPDmin_in_{unit}'.format(name = laser_name, unit=unit): np.min(lock_trace),
+                                 '{name}lockPDmax_in_{unit}'.format(name = laser_name, unit=unit): np.max(lock_trace),
+                                 '{name}lockPDmean_in_{unit}'.format(name = laser_name, unit=unit): np.mean(lock_trace)}
+                    if np.min(lock_trace) < self.low_level:
+                        self.warn_on_slack('{name} laser out of lock'.format(name=self.name))
+                    else:
+                        print(lock_dict)
+                        print('{name} laser locked'.format(name=self.name))
+                    self.append_to_backlog(lock_dict)
                 # self.upload_to_breadboard() 
                 time.sleep(self.refresh_time)
                 i+=1
 
-#testing code
 lockdetector = LockDetector(visa_address=scope_visa_addresses['near laser tables'])
