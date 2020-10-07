@@ -14,7 +14,7 @@ import json
 import numpy as np
 import warnings
 import matplotlib.cbook
-warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
+warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
 
 
 filechooser_widget = FileChooser(os.getcwd())
@@ -35,18 +35,36 @@ def get_newest_df(watchfolder, optional_column_names=[], existing_df=None):
                 os.path.abspath(os.path.join(watchfolder, file)))
     if existing_df is None:
         run_ids += run_ids_from_filenames(files_spe)
-        df = bc.get_runs_df_from_ids(run_ids, optional_column_names=optional_column_names)
+        df = bc.get_runs_df_from_ids(
+            run_ids, optional_column_names=optional_column_names)
     else:
         run_ids = list(set(run_ids_from_filenames(files_spe)).union(set(run_ids)).difference(
             set(list(existing_df['run_id']))))
         if len(run_ids) > 0:
             df = existing_df.append(bc.get_runs_df_from_ids(run_ids,
-                                                              optional_column_names=optional_column_names),
-                                      sort=False,
-                                      ignore_index=True)
+                                                            optional_column_names=optional_column_names),
+                                    sort=False,
+                                    ignore_index=True)
         else:
             df = existing_df
-    return df.sort_values('run_id')
+
+    def custom_sort(df):
+        # takes in df and returns same df with user-interaction columns first
+        #['run_id','badshot','manual_foo1','manual_foo2', 'listboundvar1', etc.]
+        cols = list(df.columns)
+        manual_cols = []
+        for col in cols:
+            if 'manual' in col:
+                manual_cols += [col]
+        manual_cols = sorted(manual_cols)
+        user_interact_cols = ['run_id'] + ['badshot'] + manual_cols
+        for col in user_interact_cols:
+            cols.remove(col)
+        return df[user_interact_cols + cols]
+
+    df = custom_sort(df)
+    df.sort_values(by='run_id', ascending=False, inplace=True)
+    return df
 
 
 def save_image_log(event, qgrid_widget):
@@ -135,6 +153,7 @@ refresh_button.on_click(refresh_qgrid)
 
 # close_button = widgets.Button(description='close')
 # close_button.on_click(close_qgrid)
+
 
 def export_qgrid(b):
     df = load_qgrid.loaded_qgrid.get_changed_df()
