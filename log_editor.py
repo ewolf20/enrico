@@ -35,17 +35,18 @@ def get_newest_df(watchfolder, optional_column_names=[], existing_df=None):
                 os.path.abspath(os.path.join(watchfolder, file)))
     if existing_df is None:
         run_ids += run_ids_from_filenames(files_spe)
-        return bc.get_runs_df_from_ids(run_ids, optional_column_names=optional_column_names)
+        df = bc.get_runs_df_from_ids(run_ids, optional_column_names=optional_column_names)
     else:
         run_ids = list(set(run_ids_from_filenames(files_spe)).union(set(run_ids)).difference(
             set(list(existing_df['run_id']))))
         if len(run_ids) > 0:
-            return existing_df.append(bc.get_runs_df_from_ids(run_ids,
+            df = existing_df.append(bc.get_runs_df_from_ids(run_ids,
                                                               optional_column_names=optional_column_names),
                                       sort=False,
                                       ignore_index=True)
         else:
-            return existing_df
+            df = existing_df
+    return df.sort_values('run_id')
 
 
 def save_image_log(event, qgrid_widget):
