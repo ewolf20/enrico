@@ -28,33 +28,39 @@ def todays_measurements():
     return run_folders
 
 
-def measurement_directory(warn=False, measurement_name=None):
-    def suggest_run_name():
-        run_folders = todays_measurements()
-        runs = {}
-        for directory in run_folders:
-            result = parse.parse('run{}_{}', directory)
-            run_idx, run_name = int(result[0]), result[1]
-            runs[run_idx] = run_name
-        if len(runs) == 0:
-            print('first run of the day! run_idx: 0')
-            measurement_name = 'run0_' + input('Enter name for run: ')
-        else:
-            last_run_idx = sorted(runs.keys())[-1]
+def suggest_run_name(newrun_input=None, appendrun_input=None):
+    run_folders = todays_measurements()
+    runs = {}
+    for directory in run_folders:
+        result = parse.parse('run{}_{}', directory)
+        run_idx, run_name = int(result[0]), result[1]
+        runs[run_idx] = run_name
+    if len(runs) == 0:
+        print('first run of the day! run_idx: 0')
+        measurement_name = 'run0_' + input('Enter name for run: ')
+    else:
+        last_run_idx = sorted(runs.keys())[-1]
+        print('last run: run{idx}_{name} ...'.format(
+            idx=str(last_run_idx), name=runs[last_run_idx]))
+        if newrun_input is None:
             newrun_input = input('Start new run? [y/n]: ')
-            if newrun_input is 'y':
-                new_run_idx = last_run_idx + 1
-                measurement_name = 'run{idx}_'.format(
-                    idx=str(new_run_idx)) + input('Enter name for run{idx}: '.format(idx=str(new_run_idx)))
-            else:
+        if newrun_input is 'y':
+            new_run_idx = last_run_idx + 1
+            measurement_name = 'run{idx}_'.format(
+                idx=str(new_run_idx)) + input('Enter name for run{idx}: '.format(idx=str(new_run_idx)))
+        else:
+            if appendrun_input is None:
                 appendrun_input = input('Append to last run: run{idx}_{name}? [y/n]: '.format(
                     idx=str(last_run_idx), name=runs[last_run_idx]))
-                if appendrun_input is 'y':
-                    measurement_name = 'run{idx}_{name}'.format(
-                        idx=str(last_run_idx), name=runs[last_run_idx])
-                else:
-                    measurement_name = suggest_run_name()
-        return measurement_name
+            if appendrun_input is 'y':
+                measurement_name = 'run{idx}_{name}'.format(
+                    idx=str(last_run_idx), name=runs[last_run_idx])
+            else:
+                measurement_name = suggest_run_name()
+    return measurement_name
+
+
+def measurement_directory(warn=False, measurement_name=None):
     if measurement_name is None:
         measurement_name = suggest_run_name()
     today = datetime.datetime.today()
