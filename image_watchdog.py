@@ -247,9 +247,20 @@ if __name__ == "__main__":
     if len(sys.argv) == 3:
         measurement_name = sys.argv[1]
         n_images_per_run = int(sys.argv[2])
-        main(measurement_name, n_images_per_run)
     elif len(sys.argv) == 1:
-        main()
+        measurement_name, n_images_per_run = None, None
     else:
         raise ValueError(
             'If using command line inputs, input both measurement name and n_images_per_run. E.g. python image_watchdog.py run1_foo 3')
+
+    try:
+        main(measurement_name=measurement_name,
+             n_images_per_run=n_images_per_run)
+    except KeyboardInterrupt:  # often the error is not being able to complete the API request, so this may need modification
+        from log_editor import get_newest_df
+        watchfolder = suggest_run_name(newrun_input='n', appendrun_input='y')
+        print('exporting csv... do not close window or interrupt with Ctrl-C!\n')
+        df = get_newest_df(watchfolder)
+        df.to_csv(os.path.join(os.path.dirname(watchfolder),
+                               os.path.basename(watchfolder) + '_params.csv'))
+        print('done. exiting')
