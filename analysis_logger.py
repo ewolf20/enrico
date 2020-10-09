@@ -214,7 +214,7 @@ if __name__ == '__main__':
             if 'misplaced' not in name and '.csv' not in name:
                 print(name)
                 last_output = name
-    watchfolder = suggest_run_name(newrun_input='n', appendrun_input='y')
+    watchfolder = measurement_directory(measurement_name=suggest_run_name(newrun_input='n', appendrun_input='y'))
     save_images = True
     save_images_input = input('Keep images after analysis? [y/n]: '
                               )
@@ -235,7 +235,13 @@ if __name__ == '__main__':
         main(analysis_type, watchfolder, load_matlab=True,
              images_per_shot=1, save_images=save_images)
     except KeyboardInterrupt:
-        pass
+        from log_editor import get_newest_df
+        watchfolder = measurement_directory(measurement_name=suggest_run_name(newrun_input='n', appendrun_input='y'))
+        print('exporting csv... do not close window or interrupt with Ctrl-C!\n')
+        df = get_newest_df(watchfolder)
+        df.to_csv(os.path.join(os.path.dirname(watchfolder),
+                               os.path.basename(watchfolder) + '_params.csv'))
+        print('done. exiting')
     except:
         warning_message = '{folder} analysis crashed: '.format(folder=watchfolder) + 'Error: {}. {}, line: {}'.format(sys.exc_info()[0],
                                                                                                                       sys.exc_info()[

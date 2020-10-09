@@ -126,10 +126,12 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
 
         # listen to breadboard server for new run_id
         try:
-            new_row_dict, _ = get_newest_run_dict()
+            new_row_dict = get_newest_run_dict()
         except:
             logger.error(sys.exc_info()[1])
             pass
+
+
 
         if new_row_dict['run_id'] != displayed_run_id:
             # print(
@@ -152,7 +154,7 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
                 if new_row_dict['run_id'] == old_run_id and old_run_id is not None:
                     get_dict_tries, max_tries = 0, 20
                     while get_dict_tries < max_tries:
-                        new_row_dict, _ = get_newest_run_dict()
+                        new_row_dict = get_newest_run_dict()
                         if new_row_dict['run_id'] != old_run_id:
                             break
                         else:
@@ -257,10 +259,11 @@ if __name__ == "__main__":
         main(measurement_name=measurement_name,
              n_images_per_run=n_images_per_run)
     except KeyboardInterrupt:  # often the error is not being able to complete the API request, so this may need modification
-        from log_editor import get_newest_df
-        watchfolder = suggest_run_name(newrun_input='n', appendrun_input='y')
-        print('exporting csv... do not close window or interrupt with Ctrl-C!\n')
-        df = get_newest_df(watchfolder)
-        df.to_csv(os.path.join(os.path.dirname(watchfolder),
-                               os.path.basename(watchfolder) + '_params.csv'))
-        print('done. exiting')
+        # from log_editor import get_newest_df
+        # watchfolder = measurement_directory(measurement_name=suggest_run_name(newrun_input='n', appendrun_input='y'))
+        # print('exporting csv... do not close window or interrupt with Ctrl-C!\n')
+        # df = get_newest_df(watchfolder)
+        # df.to_csv(os.path.join(os.path.dirname(watchfolder),
+        #                        os.path.basename(watchfolder) + '_params.csv'))
+        # print('done. exiting')
+        pass

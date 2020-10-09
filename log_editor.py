@@ -19,7 +19,6 @@ warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
 
 filechooser_widget = FileChooser(os.getcwd())
 filechooser_widget.show_only_dirs = True
-display(filechooser_widget)
 table_viewer = widgets.Output(layout={'border': '1px solid black'})
 
 
@@ -163,8 +162,6 @@ def export_qgrid(b):
 
 export_button = widgets.Button(description='export')
 export_button.on_click(export_qgrid)
-# display(widgets.HBox([load_button, refresh_button, close_button, export_button]))
-display(widgets.HBox([load_button, refresh_button, export_button]))
 
 
 optional_columns_widget = widgets.Select(
@@ -204,8 +201,7 @@ def clear_column(button):
 
 
 clear_column_button.on_click(clear_column)
-display(widgets.HBox([optional_columns_widget, textbox,
-                      add_column_button, clear_column_button]))
+
 
 
 # live plotting
@@ -265,3 +261,9 @@ live_plot_HBox = widgets.HBox(
 #             display(pil_img)
 #         else:
 #             display('no jpg preview at ' + filepath)
+
+def display_qgrid_widgets():
+    display(filechooser_widget)
+    display(widgets.HBox([load_button, refresh_button, export_button]))
+    display(widgets.HBox([optional_columns_widget, textbox,
+                      add_column_button, clear_column_button]))
