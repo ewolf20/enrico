@@ -12,6 +12,7 @@ import shutil
 import posixpath
 import sys
 from utility_functions import load_breadboard_client
+import utility_functions
 bc = load_breadboard_client()
 import warnings
 import pandas as pd
@@ -48,19 +49,7 @@ def getFileList(folder=os.getcwd()):
 
 
 def get_newest_run_dict():
-    run_id_guess = bc._send_message(
-        'get', '/runs/', params={'lab': 'fermi1'}).json()['results'][0]['id']
-    while True:
-        run_dict = bc._send_message(
-            'get', '/runs/' + str(run_id_guess) + '/', params={'lab': 'fermi1'}).json()
-        if 'runtime' not in run_dict.keys():
-            new_run_dict = bc._send_message(
-                'get', '/runs/' + str(run_id_guess - 1) + '/').json()
-            new_run_dict_clean = {'runtime': new_run_dict['runtime'],
-                                  'run_id': new_run_dict['id'],
-                                  **new_run_dict['parameters']}
-            return new_run_dict_clean, run_id_guess - 1
-        run_id_guess += 1
+    return utility_functions.get_newest_run_dict(bc)
 
 
 def check_run_image_concurrent(runtime_str, incomingfile_time, max_time_diff_in_sec=10, min_time_diff_in_sec=0):
@@ -87,7 +76,12 @@ def rename_file(filename):
     return rename
 
 
-def main(measurement_name=None, n_images_per_run=None, existing_directory_warning = False):
+def backup_BEC1server(measurement_dir, server_rootdir):
+    # check if measurement_dir exists on server
+    pass
+
+
+def main(measurement_name=None, n_images_per_run=None, existing_directory_warning=False):
     refresh_time = 1  # seconds
 
     """Name the set of runs"""
@@ -96,7 +90,8 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
     measurement_dir = measurement_directory(
         measurement_name=measurement_name, warn=existing_directory_warning)
 
-    watchfolder = os.path.join(os.getcwd(), 'images')  # feed the program your watchfolder
+    # feed the program your watchfolder
+    watchfolder = os.path.join(os.getcwd(), 'images')
 
     names_old, paths_old = getFileList(watchfolder)
     if n_images_per_run is None:

@@ -121,19 +121,11 @@ def load_breadboard_client():
 def get_newest_run_dict(bc):
     """Gets newest run dictionary containing runtime, run_id, and parameters via breadboard client bc
     """
-    run_id_guess = bc._send_message(
-        'get', '/runs/', params={'lab': 'fermi1'}).json()['results'][0]['id']
-    while True:
-        run_dict = bc._send_message(
-            'get', '/runs/' + str(run_id_guess) + '/', params={'lab': 'fermi1'}).json()
-        if 'runtime' not in run_dict.keys():
-            new_run_dict = bc._send_message(
-                'get', '/runs/' + str(run_id_guess - 1) + '/').json()
-            new_run_dict_clean = {'runtime': new_run_dict['runtime'],
-                                  'run_id': new_run_dict['id'],
-                                  **new_run_dict['parameters']}
-            return new_run_dict_clean
-        run_id_guess += 1
+    new_run_dict = bc._send_message('get', '/runs/').json()['results'][0]
+    new_run_dict_clean = {'runtime': new_run_dict['runtime'],
+                          'run_id': new_run_dict['id'],
+                          **new_run_dict['parameters']}
+    return new_run_dict_clean
 
 
 def time_diff_in_sec(runtime_str, trigger_time):
