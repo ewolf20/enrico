@@ -1,5 +1,3 @@
-import ipywidgets as widgets
-from ipywidgets import interact
 from measurement_directory import *
 import sys
 from utility_functions import load_breadboard_client
@@ -9,7 +7,7 @@ import time
 import datetime
 import shutil
 import warnings
-import enrico_bot
+# import enrico_bot
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -101,9 +99,11 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_i
     # wrap analysis_function
     def analyze_image(image_filename, previous_settings=None, output_previous_settings=True):
         if isinstance(image_filename, str):
-            abs_image_path = os.path.join(os.path.abspath(watchfolder), image_filename)
+            abs_image_path = os.path.join(
+                os.path.abspath(watchfolder), image_filename)
         elif isinstance(image_filename, list):
-            abs_image_path = [os.path.join(os.path.abspath(watchfolder), filename) for filename in image_filename]
+            abs_image_path = [os.path.join(os.path.abspath(
+                watchfolder), filename) for filename in image_filename]
         print(abs_image_path)
         logger.debug('{file} analyzing: '.format(file=image_filename))
         analysis_dict, settings = analysis_function(
@@ -111,7 +111,7 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_i
         if not output_previous_settings:
             settings = None  # forces user to select new marquee box for each shot
         cleaned_analysis_dict = {}
-        print('\n')        
+        print('\n')
         for key in analyzed_var_names:
             cleaned_analysis_dict[key] = analysis_dict[key]
             print(key, analysis_dict[key])
@@ -134,7 +134,7 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_i
         else:
             files = [filename for filename in os.listdir(watchfolder)]
             filesSPE = []
-            for file in files: #filter out non .spe files
+            for file in files:  # filter out non .spe files
                 if '.spe' in file:
                     filesSPE.append(file)
             files = filesSPE
@@ -214,12 +214,7 @@ if __name__ == '__main__':
             if 'misplaced' not in name and '.csv' not in name:
                 print(name)
                 last_output = name
-    auto_suggest_name = input(
-        'Analyze {name}? [y/n]: '.format(name=last_output))
-    if auto_suggest_name == 'y':
-        watchfolder = measurement_directory(measurement_name=last_output)
-    else:
-        watchfolder = measurement_directory()
+    watchfolder = suggest_run_name(newrun_input='n', appendrun_input='y')
     save_images = True
     save_images_input = input('Keep images after analysis? [y/n]: '
                               )
@@ -243,8 +238,9 @@ if __name__ == '__main__':
         pass
     except:
         warning_message = '{folder} analysis crashed: '.format(folder=watchfolder) + 'Error: {}. {}, line: {}'.format(sys.exc_info()[0],
-                                         sys.exc_info()[1],
-                                         sys.exc_info()[2].tb_lineno)
+                                                                                                                      sys.exc_info()[
+            1],
+            sys.exc_info()[2].tb_lineno)
         # enrico_bot.post_message(warning_message)
 
         print(warning_message)
