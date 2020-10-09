@@ -121,7 +121,7 @@ def load_breadboard_client():
 def get_newest_run_dict(bc):
     """Gets newest run dictionary containing runtime, run_id, and parameters via breadboard client bc
     """
-    new_run_dict = bc._send_message('get', '/runs/').json()['results'][0]
+    new_run_dict = bc._send_message('get', '/runs/', params = {'lab':'fermi1'}).json()['results'][0]
     new_run_dict_clean = {'runtime': new_run_dict['runtime'],
                           'run_id': new_run_dict['id'],
                           **new_run_dict['parameters']}
