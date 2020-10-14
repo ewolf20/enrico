@@ -1,3 +1,6 @@
+import json
+
+
 def fancy_plot(x, y, fmt='', **kwargs):
     """Wraps around matplotlib.pyplot (aliased to plt) with last-point highlighting and statistics
 
@@ -121,7 +124,8 @@ def load_breadboard_client():
 def get_newest_run_dict(bc):
     """Gets newest run dictionary containing runtime, run_id, and parameters via breadboard client bc
     """
-    new_run_dict = bc._send_message('get', '/runs/', params = {'lab':'fermi1'}).json()['results'][0]
+    new_run_dict = bc._send_message(
+        'get', '/runs/', params={'lab': 'fermi1'}).json()['results'][0]
     new_run_dict_clean = {'runtime': new_run_dict['runtime'],
                           'run_id': new_run_dict['id'],
                           **new_run_dict['parameters']}
@@ -138,3 +142,12 @@ def time_diff_in_sec(runtime_str, trigger_time):
     runtime = datetime.datetime.strptime(runtime_str, "%Y-%m-%dT%H:%M:%SZ")
     time_diff = (runtime - trigger_time)
     return time_diff.total_seconds()
+
+
+def load_bec1serverpath():
+    import json
+    import os
+    with open(os.path.join(os.path.dirname(__file__), "bec1server_config.json")) as my_file:
+        breadboard_dict = json.load(my_file)
+        bec1_server_path = breadboard_dict.get("BEC1server_path")
+    return bec1_server_path

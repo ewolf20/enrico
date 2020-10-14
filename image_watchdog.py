@@ -11,7 +11,7 @@ import datetime
 import shutil
 import posixpath
 import sys
-from utility_functions import load_breadboard_client
+from utility_functions import load_breadboard_client, load_bec1serverpath
 import utility_functions
 bc = load_breadboard_client()
 import warnings
@@ -76,12 +76,11 @@ def rename_file(filename):
     return rename
 
 
-def backup_BEC1server(measurement_dir, server_rootdir):
-    # check if measurement_dir exists on server
-    pass
+def main(measurement_name=None, n_images_per_run=None, existing_directory_warning=False,
+         backup_to_bec1server=False):
+    if backup_to_bec1server:
+        BEC1_path = load_bec1serverpath()
 
-
-def main(measurement_name=None, n_images_per_run=None, existing_directory_warning=False):
     refresh_time = 1  # seconds
 
     """Name the set of runs"""
@@ -130,8 +129,6 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
         except:
             logger.error(sys.exc_info()[1])
             pass
-
-
 
         if new_row_dict['run_id'] != displayed_run_id:
             # print(
@@ -206,16 +203,19 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
                     else:
                         new_filename = old_filename
                     new_filepath = os.path.join(
-                        destination, new_filename)
+                        destination, new_filename)  # relative local path in enrico folder
                     if os.path.exists(new_filepath):
                         new_filename = rename_file(new_filename)
                         new_filepath = os.path.join(
                             destination, new_filename)
-        #                 if save_to_BEC1_server:
-        #                     new_filepath_BEC1server = 'foo' #TODO set BEC1 server filepath
-        #                     shutil.copyfile(os.path.join(r'images\\', old_filename), new_filepath_BEC1server)
+                    if safety_check_passed and backup_to_bec1server:
+                        shutil.copyfile(os.path.join(r'images\\', old_filename),
+                                        os.path.join(BEC1_path, new_filepath))
+                        print('copying file to ' +
+                              os.path.join(BEC1_path, new_filepath))
                     shutil.move(os.path.join(
                         r'images\\', old_filename), new_filepath)
+
                     logger.debug('moving {old_name} to {destination}'.format(old_name=old_filename,
                                                                              destination=new_filepath))
                     image_idx += 1
