@@ -78,8 +78,6 @@ def rename_file(filename):
 
 def main(measurement_name=None, n_images_per_run=None, existing_directory_warning=False,
          backup_to_bec1server=False):
-    if backup_to_bec1server:
-        BEC1_path = load_bec1serverpath()
 
     refresh_time = 1  # seconds
 
@@ -88,6 +86,22 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
     print(todays_measurements())
     measurement_dir = measurement_directory(
         measurement_name=measurement_name, warn=existing_directory_warning)
+
+    if backup_to_bec1server:
+        BEC1_path = load_bec1serverpath()
+        # create directories on server
+        measurement_backup_path = os.path.join(BEC1_path, measurement_dir)
+        dummy_path = measurement_backup_path
+        dummy_paths = []
+        subfolder_depth = 3  # monthdir/daydir/rundir
+        for _ in range(subfolder_depth):
+            dummy_paths += [dummy_path]
+            dummy_path = os.path.dirname(dummy_path)
+        for path in reversed(dummy_paths):
+            if not os.path.exists(path):
+                print('{path} does not exist.'.format(path=path))
+                print('creating {path}'.format(path=path))
+                # os.mkdir(path)
 
     # feed the program your watchfolder
     watchfolder = os.path.join(os.getcwd(), 'images')
@@ -98,17 +112,6 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
             input('How many images arrive per run? (e.g. 3 for triple imaging sequence) '))
     print("\n\nWatching this folder for changes: " + watchfolder +
           ". Moving images to " + measurement_dir + "\n\n")
-#     ready = False
-#     while not ready:
-#         save_to_BEC1_server = input('copy images to BEC1 server? [y/n] ')
-#         if save_to_BEC1_server == 'y':
-#             ready = True
-#             print('saving to BEC1 server...')
-#         elif save_to_BEC1_server == 'n':
-#             ready = True
-#             print('saving only a local copy...')
-#         else:
-#             print('input not parsed')
 
     names, _ = getFileList(watchfolder)
     if len(names) > 0:
