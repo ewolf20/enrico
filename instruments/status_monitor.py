@@ -4,8 +4,9 @@ import os
 import sys
 main_path = os.path.abspath(os.path.join(__file__, '../..'))
 sys.path.insert(0, main_path)
-from utility_functions import load_breadboard_client, get_newest_run_dict
+from utility_functions import load_breadboard_client, get_newest_run_dict, time_diff_in_sec
 import enrico_bot
+import numpy as np
 # TODO: logging errors
 
 
@@ -20,15 +21,15 @@ class StatusMonitor:
         # seconds, to avoid off-by-one run_id uploads to breadboard
         self.max_time_diff_tolerance = max_time_diff_tolerance
 
-    def append_to_backlog(self, values_dict):
+    def append_to_backlog(self, values_dict, time_now = None):
         for value_name in values_dict:
             if '_in_' not in value_name:
                 raise ValueError('{name} not in format VALNAME_in_UNITNAME'.format(name=value_name))
 
         if len(self.backlog) > self.backlog_max:
             self.backlog.popitem(last=False)
-
-        time_now = datetime.datetime.today()
+        if time_now is None:
+            time_now = datetime.datetime.today()
         self.backlog[time_now] = values_dict
         print('Logged {value} at {time_now}'.format(value=str(values_dict),
                                                     time_now=str(time_now)))
@@ -37,7 +38,7 @@ class StatusMonitor:
         print(warning_message)
         now = datetime.datetime.now()
         if (self.last_warning is None or
-                (now - self.last_warning).seconds / 60 < self.warning_interval_in_min):
+                (now - self.last_warning).seconds / 60 > self.warning_interval_in_min):
             enrico_bot.post_message(warning_message)
             self.last_warning = now
         else:
@@ -47,6 +48,7 @@ class StatusMonitor:
     def upload_to_breadboard(self):
         #matches backlog times to run_id times and writes (but not overwrites) closest log entry to breadboard
         run_dict = get_newest_run_dict(self.bc)
+        new_run_id = run_dict['run_id']
         time_diffs = np.array([time_diff_in_sec(
             run_dict['runtime'], backlog_time) for backlog_time in self.backlog])
         time_diffs[time_diffs < self.read_run_time_offset] = -np.infty
@@ -65,7 +67,7 @@ class StatusMonitor:
                     readout_exists_on_breadboard = True
                     # print('{name} already exists for run_id {id} on breadboard.'.format(name=value_name,id=run_dict['run_id']))
             if not readout_exists_on_breadboard:
-                resp = bc.add_instrument_readout_to_run(
+                resp = self.bc.add_instrument_readout_to_run(
                     new_run_id, dict_to_upload)
                 if resp.status_code != 200:
                     warning_text = ('Error uploading {dict_to_upload} from {time_str} to run_id {id}. Error text: '.format(dict_to_upload=str(dict_to_upload),
@@ -75,6 +77,7 @@ class StatusMonitor:
                                                                                                                             ) + resp.text)
                     self.warn_on_slack(warning_text)
         else:
-            warning_text = 'Time difference between {value} reading and latest breadboard entry exceeds max tolerance of {tol} sec. Check breadboard-cicero-client.'.format(
-                tol=str(self.max_time_diff_tolerance), value=self.value_name)
-            self.warn_on_slack(warning_text)
+            warning_text = 'Time difference {diff} sec between reading and latest breadboard entry exceeds max tolerance of {tol} sec. Check breadboard-cicero-client.'.format(
+                diff = str(np.abs(min_time_diff_from_ideal)), tol=str(self.max_time_diff_tolerance))
+            if np.abs(min_time_diff_from_ideal) != np.inf:
+                self.warn_on_slack(warning_text)

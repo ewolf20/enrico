@@ -9,6 +9,7 @@ from status_monitor import StatusMonitor
 import time
 import parse
 import matplotlib.pyplot as plt
+import datetime
 
 rm = visa.ResourceManager('C:\\Windows\\System32\\visa64.dll')
 scope_visa_addresses = {'near laser tables':"TCPIP0::192.168.1.9::inst0::INSTR",
@@ -417,6 +418,8 @@ class LockDetector(StatusMonitor):
                 self.lock_channels[channel] = {'laser':laser_name,
                                                'low_level':low_level}
                 done = input('Done? [y/n]: ')
+        else:
+            self.lock_channels = lock_channels
         self.refresh_time = refresh_time
 
     def main(self):
@@ -424,25 +427,26 @@ class LockDetector(StatusMonitor):
         with self.scope as scope:
             while True:
                 scope_traces = scope.acquire_traces()
+                time_now = datetime.datetime.today()
+                lock_dict = {}
                 for chl_idx in self.lock_channels.keys():
                     for column_name in scope_traces.columns:
-                        if 'ch{idx}'.format(idx=str(idx)) in column_name:
+                        if 'ch{idx}'.format(idx=str(chl_idx)) in column_name:
                             break #set column_name to ch{idx}_in_{unit}
                     lock_trace = np.array(scope_traces[column_name])
                     laser_name = self.lock_channels[chl_idx]['laser']
                     low_level = self.lock_channels[chl_idx]['low_level']
                     _, unit = parse.parse('{}_in_{}', column_name)
-                    lock_dict = {'{name}lockPDmin_in_{unit}'.format(name = laser_name, unit=unit): np.min(lock_trace),
+                    lock_dict.update({'{name}lockPDmin_in_{unit}'.format(name = laser_name, unit=unit): np.min(lock_trace),
                                  '{name}lockPDmax_in_{unit}'.format(name = laser_name, unit=unit): np.max(lock_trace),
-                                 '{name}lockPDmean_in_{unit}'.format(name = laser_name, unit=unit): np.mean(lock_trace)}
-                    if np.min(lock_trace) < self.low_level:
-                        self.warn_on_slack('{name} laser out of lock'.format(name=self.name))
+                                 '{name}lockPDmean_in_{unit}'.format(name = laser_name, unit=unit): np.mean(lock_trace)})
+                    if np.min(lock_trace) < low_level:
+                        pass
+                        # self.warn_on_slack('{name} laser out of lock'.format(name=laser_name))
                     else:
-                        print(lock_dict)
-                        print('{name} laser locked'.format(name=self.name))
-                    self.append_to_backlog(lock_dict)
-                # self.upload_to_breadboard() 
+                        print('{name} laser locked'.format(name=laser_name))
+                self.append_to_backlog(lock_dict, time_now=time_now)
+                self.upload_to_breadboard()
                 time.sleep(self.refresh_time)
+                print('\n\n')
                 i+=1
-
-lockdetector = LockDetector(visa_address=scope_visa_addresses['near laser tables'])
