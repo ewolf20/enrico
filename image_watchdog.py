@@ -77,7 +77,7 @@ def rename_file(filename):
 
 
 def main(measurement_name=None, n_images_per_run=None, existing_directory_warning=False,
-         backup_to_bec1server=False):
+         backup_to_bec1server=True):
 
     refresh_time = 1  # seconds
 
@@ -101,7 +101,7 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
             if not os.path.exists(path):
                 print('{path} does not exist.'.format(path=path))
                 print('creating {path}'.format(path=path))
-                # os.mkdir(path)
+                os.mkdir(path)
 
     # feed the program your watchfolder
     watchfolder = os.path.join(os.getcwd(), 'images')
