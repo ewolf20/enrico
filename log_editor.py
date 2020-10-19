@@ -131,8 +131,10 @@ def load_image_log(watchfolder, optional_column_names=[]):
 def load_qgrid(b):
     load_qgrid.loaded_qgrid = load_image_log(filechooser_widget.selected_path,
                                              list(optional_columns_widget.options))
-    xvars_menu.options = load_qgrid.loaded_qgrid.get_changed_df().columns
-    yvars_menu.options = load_qgrid.loaded_qgrid.get_changed_df().columns
+    xvars_menu.options = sorted(
+        load_qgrid.loaded_qgrid.get_changed_df().columns, key=str.casefold)
+    yvars_menu.options = sorted(
+        load_qgrid.loaded_qgrid.get_changed_df().columns, key=str.casefold)
 
 
 load_button = widgets.Button(description='load')
@@ -203,7 +205,6 @@ def clear_column(button):
 clear_column_button.on_click(clear_column)
 
 
-
 # live plotting
 xvars_display = widgets.Select(
     options=[],
@@ -262,8 +263,9 @@ live_plot_HBox = widgets.HBox(
 #         else:
 #             display('no jpg preview at ' + filepath)
 
+
 def display_qgrid_widgets():
     display(filechooser_widget)
     display(widgets.HBox([load_button, refresh_button, export_button]))
     display(widgets.HBox([optional_columns_widget, textbox,
-                      add_column_button, clear_column_button]))
+                          add_column_button, clear_column_button]))
