@@ -106,7 +106,6 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
     # feed the program your watchfolder
     watchfolder = os.path.join(os.getcwd(), 'images')
 
-    names_old, paths_old = getFileList(watchfolder)
     if n_images_per_run is None:
         n_images_per_run = int(
             input('How many images arrive per run? (e.g. 3 for triple imaging sequence) '))
@@ -170,15 +169,18 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
                             warned = True
                         safety_check_passed = False
                 if not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time) and safety_check_passed:
-                    warning_message = 'Incoming image time and latest Breadboard runtime differ by too much. Check run_id {id} manually later.'.format(
-                        id=str(new_row_dict['run_id']))
-                    if not warned:
-                        # enrico_bot.post_message(warning_message)
-                        warned = True
-                    warning = warnings.warn(warning_message)
-                    # print(warning)
-                    logger.warning(warning_message)
-                    safety_check_passed = False
+                    retry_count, max_retries = 0, 5
+                    while not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time) and retry_count < max_retries:
+                        retry_count += 1
+                        new_row_dict = get_newest_run_dict()
+                        time.sleep(0.5)
+
+                    if not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time):
+                        warning_message = 'Incoming image time and latest Breadboard runtime differ by too much. Check run_id {id} manually later.'.format(
+                            id=str(new_row_dict['run_id']))
+                        warning = warnings.warn(warning_message)
+                        logger.warning(warning_message)
+                        safety_check_passed = False
 
                 if not safety_check_passed:
                     destination = measurement_dir + '_misplaced'
