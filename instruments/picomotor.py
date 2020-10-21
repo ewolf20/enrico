@@ -37,11 +37,12 @@ class MSerial:
         for idx in range(1, 4):
             self.history[str(idx)] = {str(idx): OrderedDict() for idx in range(0, 3)}
         self.MAX_LENGTH = 1e3
-        self.aliases = {'TiSa horiz': (1,0), 
+        self.aliases = {'DShape horiz': (1,0), 
                         'CODT horiz': (1,1), 'CODT vert': (1,2),
-                        'DShape': (2,0),
-                        'downleg vert': (3,0), 'downleg horiz': (3,1),
-                        'flex':(3,2),
+                        'DShape vert': (2,0),
+                        'Downleg horiz': (2,1), 'Downleg vert': (2,2),
+                        'PODT horiz': (3,0), 'PODT vert': (3,1),
+                        'unused':(3,2),
                         }
 
     def send(self, cmd):
@@ -131,8 +132,6 @@ class MSerial:
         i = 1
         for driver_key in self.history:
             for motor_key in self.history[driver_key]:
-                # if len(self.history[driver_key][motor_key]) == 0:
-                #     continue
                 plt.subplot(len(self.history), 2, i)
                 x_data = list(self.history[driver_key][motor_key].keys())
                 y_data = np.cumsum(list(self.history[driver_key][motor_key].values()))
@@ -146,8 +145,6 @@ class MSerial:
         i = 2
         for driver_key in self.history:
             for motor_key in self.history[driver_key]:
-                # if len(self.history[driver_key][motor_key]) == 0:
-                #     continue
                 plt.subplot(len(self.history), 2, i)
                 x_data = list(self.history[driver_key][motor_key].keys())
                 y_data = list(self.history[driver_key][motor_key].values())
