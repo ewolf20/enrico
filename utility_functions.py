@@ -128,7 +128,6 @@ def get_newest_run_dict(bc, max_retries=10):
     """
     retries = 0
     while retries < max_retries:
-        print(retries)
         try:
             resp = bc._send_message(
                 'get', '/runs/', params={'lab': 'fermi1', 'limit': 1})
