@@ -1,4 +1,6 @@
 import json
+import time
+from json import JSONDecodeError
 
 
 def fancy_plot(x, y, fmt='', **kwargs):
@@ -121,11 +123,24 @@ def load_breadboard_client():
     return bc
 
 
-def get_newest_run_dict(bc):
+def get_newest_run_dict(bc, max_retries=10):
     """Gets newest run dictionary containing runtime, run_id, and parameters via breadboard client bc
     """
-    new_run_dict = bc._send_message(
-        'get', '/runs/', params={'lab': 'fermi1'}).json()['results'][0]
+    while retries < max_retries:
+        print(retries)
+        try:
+            resp = bc._send_message(
+                'get', '/runs/', params={'lab': 'fermi1', 'limit': 1})
+            if resp.status_code != 200:
+                retries += 1
+                time.sleep(0.3)
+                continue
+            new_run_dict = resp.json()['results'][0]
+            break
+        except JSONDecodeError:
+            time.sleep(0.3)
+            retries += 1
+
     new_run_dict_clean = {'runtime': new_run_dict['runtime'],
                           'run_id': new_run_dict['id'],
                           **new_run_dict['parameters']}
