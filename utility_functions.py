@@ -126,6 +126,7 @@ def load_breadboard_client():
 def get_newest_run_dict(bc, max_retries=10):
     """Gets newest run dictionary containing runtime, run_id, and parameters via breadboard client bc
     """
+    retries = 0
     while retries < max_retries:
         print(retries)
         try:
