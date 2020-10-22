@@ -99,7 +99,6 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
             dummy_path = os.path.dirname(dummy_path)
         for path in reversed(dummy_paths):
             if not os.path.exists(path):
-                print('{path} does not exist.'.format(path=path))
                 print('creating {path}'.format(path=path))
                 os.mkdir(path)
 
