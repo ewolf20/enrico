@@ -129,13 +129,9 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
             new_row_dict = get_newest_run_dict()
         except:
             logger.error(sys.exc_info()[1])
-            pass
+            continue
 
         if new_row_dict['run_id'] != displayed_run_id:
-            # print(
-            #     'new run_id: ' + str(new_row_dict['run_id']) + '. runtime: ' + str(new_row_dict['runtime']))
-            # print('list bound variables: {run_dict}'.format(run_dict={key: new_row_dict[key]
-            #                                                           for key in new_row_dict['ListBoundVariables']}))
             logger.debug('list bound variables: {run_dict}'.format(run_dict={key: new_row_dict[key]
                                                                              for key in new_row_dict['ListBoundVariables']}))
             logger.debug(
@@ -147,38 +143,24 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
             incomingfile_time = datetime.datetime.today()
             if len(new_names) == n_images_per_run:
                 print('\n')
-                # safety checks that run_id is updating and image came within 10 seconds of last Cicero upload.
-                safety_check_passed = True
-                if new_row_dict['run_id'] == old_run_id and old_run_id is not None:
-                    get_dict_tries, max_tries = 0, 20
-                    while get_dict_tries < max_tries:
-                        new_row_dict = get_newest_run_dict()
-                        if new_row_dict['run_id'] != old_run_id:
-                            break
-                        else:
-                            get_dict_tries += 1
-                            time.sleep(0.1)
-                    if new_row_dict['run_id'] == old_run_id:
-                        warning_message = 'run_id did not update from old id {id} between shots, check on control PC if cicero breadboard logger is on.'.format(
-                            id=str(old_run_id))
-                        warnings.warn(warning_message)
-                        logger.warning(warning_message)
-                        if not warned:  # prevent enrico_bot from spamming
-                            enrico_bot.post_message(warning_message)
-                            warned = True
-                        safety_check_passed = False
+                # safety check that image came within 10 seconds of last Cicero upload.
                 if not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time) and safety_check_passed:
-                    retry_count, max_retries = 0, 5
-                    while not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time) and retry_count < max_retries:
-                        retry_count += 1
-                        new_row_dict = get_newest_run_dict()
-                        time.sleep(0.5)
+                    try:
+                        retry_count, max_retries = 0, 5
+                        while not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time) and retry_count < max_retries:
+                            retry_count += 1
+                            new_row_dict = get_newest_run_dict()
+                            time.sleep(0.5)
 
-                    if not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time):
-                        warning_message = 'Incoming image time and latest Breadboard runtime differ by too much. Check run_id {id} manually later.'.format(
-                            id=str(new_row_dict['run_id']))
-                        warning = warnings.warn(warning_message)
-                        logger.warning(warning_message)
+                        if not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time):
+                            warning_message = 'Incoming image time and latest Breadboard runtime differ by too much. Check run_id {id} manually later.'.format(
+                                id=str(new_row_dict['run_id']))
+                            warning = warnings.warn(warning_message)
+                            logger.warning(warning_message)
+                            safety_check_passed = False
+                        else:
+                            safety_check_passed = True
+                    except:
                         safety_check_passed = False
 
                 if not safety_check_passed:
@@ -189,7 +171,6 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
                     destination = measurement_dir
 
                 output_filenames = []
-                new_names = sorted(new_names)
                 image_idx = 0
                 run_id = new_row_dict['run_id']
                 for filename in new_names[0:n_images_per_run]:
@@ -263,11 +244,4 @@ if __name__ == "__main__":
         main(measurement_name=measurement_name,
              n_images_per_run=n_images_per_run)
     except KeyboardInterrupt:  # often the error is not being able to complete the API request, so this may need modification
-        # from log_editor import get_newest_df
-        # watchfolder = measurement_directory(measurement_name=suggest_run_name(newrun_input='n', appendrun_input='y'))
-        # print('exporting csv... do not close window or interrupt with Ctrl-C!\n')
-        # df = get_newest_df(watchfolder)
-        # df.to_csv(os.path.join(os.path.dirname(watchfolder),
-        #                        os.path.basename(watchfolder) + '_params.csv'))
-        # print('done. exiting')
         pass
