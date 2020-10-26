@@ -55,11 +55,11 @@ def get_newest_run_dict():
 def check_run_image_concurrent(runtime_str, incomingfile_time, max_time_diff_in_sec=10, min_time_diff_in_sec=0):
     runtime = datetime.datetime.strptime(runtime_str, "%Y-%m-%dT%H:%M:%SZ")
     time_diff = (incomingfile_time - runtime)
+    print("time diff in seconds: {time_diff}".format(
+            time_diff=str(time_diff.total_seconds())))
     if min_time_diff_in_sec < time_diff.total_seconds() < max_time_diff_in_sec:
         return True
     else:
-        print("time diff in seconds: {time_diff}".format(
-            time_diff=str(time_diff.total_seconds())))
         return False
 
 
@@ -144,13 +144,13 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
             if len(new_names) == n_images_per_run:
                 print('\n')
                 # safety check that image came within 10 seconds of last Cicero upload.
-                if not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time) and safety_check_passed:
+                if not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time):
                     try:
                         retry_count, max_retries = 0, 5
                         while not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time) and retry_count < max_retries:
                             retry_count += 1
                             new_row_dict = get_newest_run_dict()
-                            time.sleep(0.5)
+                            time.sleep(1)
 
                         if not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time):
                             warning_message = 'Incoming image time and latest Breadboard runtime differ by too much. Check run_id {id} manually later.'.format(
@@ -162,7 +162,8 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
                             safety_check_passed = True
                     except:
                         safety_check_passed = False
-
+                else:
+                    safety_check_passed = True
                 if not safety_check_passed:
                     destination = measurement_dir + '_misplaced'
                     if not os.path.exists(destination):
