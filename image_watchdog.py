@@ -56,7 +56,7 @@ def check_run_image_concurrent(runtime_str, incomingfile_time, max_time_diff_in_
     runtime = datetime.datetime.strptime(runtime_str, "%Y-%m-%dT%H:%M:%SZ")
     time_diff = (incomingfile_time - runtime)
     print("time diff in seconds: {time_diff}".format(
-            time_diff=str(time_diff.total_seconds())))
+        time_diff=str(time_diff.total_seconds())))
     if min_time_diff_in_sec < time_diff.total_seconds() < max_time_diff_in_sec:
         return True
     else:
@@ -77,7 +77,7 @@ def rename_file(filename):
 
 
 def main(measurement_name=None, n_images_per_run=None, existing_directory_warning=False,
-         backup_to_bec1server=True):
+         backup_to_bec1server=True, max_idle_time=60 * 5):
 
     refresh_time = 1  # seconds
 
@@ -118,6 +118,9 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
     old_list_bound_variables = None
     warned = False
     displayed_run_id = None
+    previous_update_time = datetime.datetime.now()
+    idle_message_sent = False
+
     # Main Loop
     while True:
         # Get a list of all the images in the folder
@@ -142,6 +145,7 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
         if len(new_names) > 0:
             incomingfile_time = datetime.datetime.today()
             if len(new_names) == n_images_per_run:
+                previous_update_time = datetime.datetime.now()
                 print('\n')
                 # safety check that image came within 10 seconds of last Cicero upload.
                 if not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time):
@@ -226,7 +230,17 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
                         warnings.warn(warning)
                         logger.warning(warning)
                         pass
-
+        # send a slack message after idling for max_idle_time
+        idle_time = (datetime.datetime.now() -
+                     previous_update_time).total_seconds()
+        if idle_time > max_idle_time and not idle_message_sent:
+            idle_message = 'Measurement {id} idle, no new images for {min}'.format(id=measurement_dir,
+                                                                                   min=str(idle_time / 60))
+            enrico_bot.post_message(idle_message)
+            print(idle_message)
+            idle_message_sent = True
+        elif idle_time < max_idle_time and idle_message_sent:
+            idle_message_sent = False  # reset message status if image taking is resumed
         # Wait before checking again
         time.sleep(refresh_time)
 
