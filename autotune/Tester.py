@@ -1,45 +1,47 @@
 from autotune import Tunable, Knob, Autotuner 
-
+import numpy as np
 """A class for testing the autotuning module.
 Spoofs a tunable by just returning 0 to every tune request. Also provides, for convenience, a signal function which is just a Gaussian, peaked at the 0 
 values for each of the variables and optionally with some noise. 
 """
 class Spoof_Tunable(Tunable):
-    import numpy as np
 
     def __init__(self, number_float_knobs = 2, number_int_knobs = 0, number_boolean_knobs = 0):
         self.knobs_dict = {}
         self.rng = np.random.default_rng()
         self.eval_ticker = 0
         for i in range(number_float_knobs):
-            current_float_knob = Knob(Spoof_Tunable, {'knob_name':'float_knob_'+str(i + 1), 'initial_value':0.0, 
-            'min_value':-np.inf, 'max_value':np.inf 'typical_increment':1.0, 'max_increment':np.inf, 'increment_waiting_time':0.0, 'value_type':'float'})
+            current_float_knob = Knob(
+                Spoof_Tunable, {'name':'float_knob_'+str(i + 1), 'initial_value':0.0,
+                'min_value':-np.inf, 'max_value':np.inf, 'typical_increment':1.0, 'max_increment':np.inf, 'increment_wait_time':0.0, 'value_type':'float'})
             self.knobs_dict['float_knob_'+str(i + 1)] = current_float_knob
         for i in range(number_int_knobs):
-            current_int_knob = Knob(Spoof_Tunable, {'knob_name':'int_knob_'+str(i + 1), 'initial_value':0, 
-            'min_value':-np.inf, 'max_value':np.inf 'typical_increment':1, 'max_increment':np.inf, 'increment_waiting_time':0.0, 'value_type':'int'})
+            current_int_knob = Knob(
+                Spoof_Tunable, {'name':'int_knob_'+str(i + 1), 'initial_value':0, 
+                'min_value':-np.inf, 'max_value':np.inf, 'typical_increment':1, 'max_increment':np.inf, 'increment_wait_time':0.0, 'value_type':'int'})
             self.knobs_dict['int_knob'+str(i + 1)] = current_int_knob 
         for i in range(number_boolean_knobs):
-            current_boolean_knob = Knob(Spoof_Tunable, {'knob_name':'boolean_knob_'+str(i + 1), 'initial_value':False, 
-            'min_value': 0, 'max_value':1 'typical_increment':1, 'max_increment':np.inf, 'increment_waiting_time':0.0, 'value_type':'boolean'})
+            current_boolean_knob = Knob(
+                Spoof_Tunable, {'name':'boolean_knob_'+str(i + 1), 'initial_value':False, 
+                'min_value': 0, 'max_value':1, 'typical_increment':1, 'max_increment':np.inf, 'increment_wait_time':0.0, 'value_type':'boolean'})
             self.knobs_dict['boolean_knob'+str(i + 1)] = current_boolean_knob 
         
     
     """Implementation of required class method. Note that it returns a shallow copy of the tuning knob dict."""
-    def get_tuning_knobs():
+    def get_tuning_knobs(self):
         return self.knobs_dict.copy()
 
     """Implementation of required class method."""
-    def tune_knob(knob_name, increment):
+    def tune_knob(self, knob_name, increment):
         if(knob_name in self.knobs_dict):
             return 0
         else:
             return -1 
     
-    def get_evals():
+    def get_evals(self):
         return self.eval_ticker 
     
-    def reset_evals():
+    def reset_evals(self):
         self.eval_ticker = 0 
 
     """Return a spoofed signal.
@@ -57,7 +59,7 @@ class Spoof_Tunable(Tunable):
     other object or function. This is included here for convenience.
     """
     
-    def give_spoofed_signal(noise = 0.0, amplitude = 1.0, sigma = 1.0):
+    def give_spoofed_signal(self,noise = 0.0, amplitude = 1.0, sigma = 1.0):
         float_knob_values = [] 
         int_knob_values = [] 
         boolean_knob_values = []
@@ -78,6 +80,8 @@ class Spoof_Tunable(Tunable):
         
 
 def main():
+    my_spoof_tunable = Spoof_Tunable() 
+    print(my_spoof_tunable.give_spoofed_signal()) 
 
 
 if __name__ == "__main__":

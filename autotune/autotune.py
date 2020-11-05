@@ -1,4 +1,4 @@
-from abc import ABC 
+from abc import ABC, abstractmethod
 
 class Tunable(ABC):
 
@@ -51,8 +51,8 @@ class Knob():
         self.value = knob_dict['initial_value']
         self.INITIAL_VALUE = self.value 
         self.MIN_VALUE = knob_dict['min_value']
-        self.MAX_VALUE = knob_dict['knob_max_value']
-        self.TYPICAL_INCREMENT = knob_dict['typical_knob_increment']
+        self.MAX_VALUE = knob_dict['max_value']
+        self.TYPICAL_INCREMENT = knob_dict['typical_increment']
         self.MAX_INCREMENT = knob_dict['max_increment']
         self.INCREMENT_WAIT_TIME = knob_dict['increment_wait_time']
         self.VALUE_TYPE = knob_dict['value_type']
@@ -74,7 +74,7 @@ class Knob():
     """
     #TODO: Must add code handling what happens when a knob fails a tune AFTER some adjustment has been made. Does it try to re-home to 
     #initial position? Does it give up? 
-    def tune(tuning_amount):
+    def tune(self, tuning_amount):
         if(self.is_locked):
             return -1
         if(self.VALUE_TYPE == "boolean"):
@@ -100,10 +100,10 @@ class Knob():
         return 0 
     
 
-    def get_value():
+    def get_value(self):
         return self.value 
 
-    def set_value(target_value):
+    def set_value(self,target_value):
         if(self.value == target_value):
             return 0
         if(self.VALUE_TYPE == "boolean"):
@@ -111,22 +111,22 @@ class Knob():
         else:
             return self.tune(target_value - self.value)
     
-    def set_lock(lock_status):
+    def set_lock(self, lock_status):
         self.is_locked = lock_status
 
-    def get_lock():
+    def get_lock(self):
         return self.is_locked()
 
-    def get_name():
+    def get_name(self):
         return self.name 
 
-    def get_lower_bound():
+    def get_lower_bound(self):
         return self.MIN_VALUE 
     
-    def get_upper_bound():
+    def get_upper_bound(self):
         return self.MAX_VALUE 
     
-    def get_value_type():
+    def get_value_type(self):
         return self.VALUE_TYPE 
 
 
@@ -142,25 +142,31 @@ class Autotuner():
     """
     #TODO: Should add support for passing a dict with just knobs, where the lower and upper bounds are then furnished by the minimum and maximum 
     #values which are allowed for the knob.
-
-
+    #TODO: Add warnings when knob addition overrides the given bounds to the knob values
     def __init__(self, signal_function, averages = 1, knobs_and_bounds_dict = None):
         self.signal_function = signal_function 
         self.knob_and_bound_dict = {}
         if(knobs_and_bounds_dict != None):
             for key in knobs_and_bounds_dict:
-                self.knob_and_bound_dict[key] = list([knobs_and_bounds_dict[key]]) 
+                self.knob_and_bound_dict[key] = list(knobs_and_bounds_dict[key]) 
     
-    def add_knob(knob, lower_bound = -np.inf, upper_bound = np.inf):
+    def add_knob(self, knob, lower_bound = -np.inf, upper_bound = np.inf):
         new_knob_key = knob.get_name() 
         if new_knob_key in self.knob_and_bound_dict:
             raise ValueError("The autotuner already has a knob with the same name. To adjust bounds, call adjust_knob_bound")
-        self.knob_and_bound_dict[new_knob_key] = [knob, knob., upper_bound] 
+        upper_bound = min(upper_bound, knob.get_upper_bound()) 
+        lower_bound = max(lower_bound, knob_get_lower_bound()) 
+        self.knob_and_bound_dict[key] = [knob, lower_bound, upper_bound]
     
     "Removes the knob with name knob_name from the autotuner via pop"
-    def remove_knob(knob_name):
+    def remove_knob(self, knob_name):
         return self.knob_and_bound_dict.pop(knob_name)
-    
+
+    def change_knob_bound(self, knob_name, lower_bound, upper_bound):
+        knob_list = self.knob_and_bound_dict[knob_name]
+        knob_list[1] = lower_bound 
+        knob_list[2] = upper_bound 
+
     """Brute-force searches a region of knob parameter space.
     Divides knob parameter space into a grid of points, evaluates the signal at each point, and returns the parameters
     where it is MAXIMIZED.
@@ -175,21 +181,21 @@ class Autotuner():
     A tuple (0, valuedict) if the set occurred correctly; valuedict contains the optimal values found for each knob, with keys the knob names.
     A tuple (errorcode, None) if the set did not occur correctly. Error codes are all negative integers."""
 
-    def brute_force_tune(*args):
+    def brute_force_tune(self, *args):
         #Hacky way to check which input type we are given
         if(len(args) == 0):
-            full_space_array_dict = get_full_space_array_dict()
-            knob_list, search_array_list = make_searchgrid_from_array_dict(full_space_array_dict) 
+            full_space_array_dict = self.get_full_space_array_dict()
+            knob_list, search_array_list = self.make_searchgrid_from_array_dict(full_space_array_dict) 
         else:
             try:
                 #If it's a dictionary, it'll be iterable
                 for key in args[0]:
                     break
-                knob_list, search_array_list = make_searchgrid_from_array_dict(args[0]) 
+                knob_list, search_array_list = self.make_searchgrid_from_array_dict(args[0]) 
             except TypeError:
                 #If it's an integer, it won't be
-                full_space_array_dict = get_full_space_array_dict(number_points = args[0]) 
-                knob_list, search_array_list = make_searchgrid_from_array_dict(full_space_array_dict) 
+                full_space_array_dict = self.get_full_space_array_dict(number_points = args[0]) 
+                knob_list, search_array_list = self.make_searchgrid_from_array_dict(full_space_array_dict) 
         maximum_signal = -np.inf 
         optimal_knob_values_list = None 
         #The first index of search_array_list is the knobs; the second index is the values to which to set them.
@@ -221,7 +227,7 @@ class Autotuner():
     element is a list of numpy arrays, in the same order as the knobs, which represents the values that the knobs should be given for the search.
     The numpy arrays are, specifically, flattened outputs of np.meshgrid for each knob."""
 
-    def make_searchgrid_from_array_dict(arrays_dict):
+    def make_searchgrid_from_array_dict(self, arrays_dict):
         ordered_knob_list = [] 
         knob_values_list = []
         for key in arrays_dict:
