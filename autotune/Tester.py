@@ -12,17 +12,17 @@ class Spoof_Tunable(Tunable):
         self.eval_ticker = 0
         for i in range(number_float_knobs):
             current_float_knob = Knob(
-                Spoof_Tunable, {'name':'float_knob_'+str(i + 1), 'initial_value':0.0,
+                self, {'name':'float_knob_'+str(i + 1), 'initial_value':0.0,
                 'min_value':-np.inf, 'max_value':np.inf, 'typical_increment':1.0, 'max_increment':np.inf, 'increment_wait_time':0.0, 'value_type':'float'})
             self.knobs_dict['float_knob_'+str(i + 1)] = current_float_knob
         for i in range(number_int_knobs):
             current_int_knob = Knob(
-                Spoof_Tunable, {'name':'int_knob_'+str(i + 1), 'initial_value':0, 
+                self, {'name':'int_knob_'+str(i + 1), 'initial_value':0, 
                 'min_value':-np.inf, 'max_value':np.inf, 'typical_increment':1, 'max_increment':np.inf, 'increment_wait_time':0.0, 'value_type':'int'})
             self.knobs_dict['int_knob'+str(i + 1)] = current_int_knob 
         for i in range(number_boolean_knobs):
             current_boolean_knob = Knob(
-                Spoof_Tunable, {'name':'boolean_knob_'+str(i + 1), 'initial_value':False, 
+                self, {'name':'boolean_knob_'+str(i + 1), 'initial_value':False, 
                 'min_value': 0, 'max_value':1, 'typical_increment':1, 'max_increment':np.inf, 'increment_wait_time':0.0, 'value_type':'boolean'})
             self.knobs_dict['boolean_knob'+str(i + 1)] = current_boolean_knob 
         
@@ -81,7 +81,15 @@ class Spoof_Tunable(Tunable):
 
 def main():
     my_spoof_tunable = Spoof_Tunable() 
-    print(my_spoof_tunable.give_spoofed_signal()) 
+    my_knobs_dict = my_spoof_tunable.get_tuning_knobs() 
+    my_autotuner = Autotuner(my_spoof_tunable.give_spoofed_signal)
+    my_autotuner.add_knob(my_knobs_dict["float_knob_1"], -2.0, 2.0) 
+    my_autotuner.add_knob(my_knobs_dict["float_knob_2"], -2.0, 2.0) 
+    my_results = my_autotuner.brute_force_tune(12, autoset = False) 
+    print(my_results) 
+    for key in my_knobs_dict:
+        print(key + str(" = " + str(my_knobs_dict[key].get_value())))
+
 
 
 if __name__ == "__main__":
