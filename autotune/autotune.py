@@ -2,13 +2,14 @@ from abc import ABC, abstractmethod
 import numpy as np 
 from math import copysign
 from time import sleep 
+import warnings 
 
 
 class Tunable(ABC):
 
     """An abstract method that will return the tuning knobs which a tunable has
     Returns:
-    A dict of the tuning knobs which a tunable has, whose keys are their names. 
+    A dict {knob_name:knob} of the tuning knobs which a tunable has, whose keys are their names. 
     Note: This should be a SHALLOW copy of the backing dict of tuning knobs which a 
     tunable has. If it's not a copy, then pops or other mischief could break the tunable.
     If it's a deep copy, then different instances of knobs appear. This won't break the 
@@ -16,6 +17,15 @@ class Tunable(ABC):
     """
     @abstractmethod 
     def get_tuning_knobs():
+        pass 
+
+    """An abstract method which returns the tuning knobs, plus their maximum and minimum allowed values.
+    Returns:
+    A dict as above, but of the form {knob_name:(knob, knob_lower, knob_upper)}, where knob_lower
+    and knob_upper are the knob-level upper and lower bounds. The method is present for convenience.
+    """
+    @abstractmethod 
+    def get_tuning_knobs_and_bounds():
         pass 
 
     """An abstract method that tunes a given knob on a tunable by the specified value
@@ -139,32 +149,49 @@ class Autotuner():
     Parameters:
     signal_function: A function which, when called, returns the signal which autotuner is trying to MAXIMIZE. Any averaging/conditioning of this signal is
         done at the level of this function or lower. If a signal should be minimized, invert it before it gets here. 
-    (OPTIONAL) Knobs_dict: A dict of tuples (knob, lower, upper) which give the knobs the autotuner can tune along with lower and upper bounds. Default None.
+    (OPTIONAL) Knobs_dict: A dict of tuples {knob_name:(knob, lower, upper)} containing knobs autotuner should tune and their bounds.
+    Note: Knobs can also be added post-initialization with add_knob()
     """
-    #TODO: Should add support for passing a dict with just knobs, where the lower and upper bounds are then furnished by the minimum and maximum 
-    #values which are allowed for the knob.
+
     #TODO: Add warnings when knob addition overrides the given bounds to the knob values
     def __init__(self, signal_function, knobs_and_bounds_dict = None):
         self.signal_function = signal_function 
         self.knob_and_bound_dict = {}
         if(knobs_and_bounds_dict != None):
             for key in knobs_and_bounds_dict:
-                self.knob_and_bound_dict[key] = list(knobs_and_bounds_dict[key]) 
+                #Star syntax unpacks iterable
+                self.add_knob(*(knobs_and_bounds_dict[key]))
     
     def add_knob(self, knob, lower_bound = -np.inf, upper_bound = np.inf):
         new_knob_key = knob.get_name() 
         if new_knob_key in self.knob_and_bound_dict:
             raise ValueError("The autotuner already has a knob with the same name. To adjust bounds, call adjust_knob_bound")
-        upper_bound = min(upper_bound, knob.get_upper_bound()) 
-        lower_bound = max(lower_bound, knob.get_lower_bound()) 
-        self.knob_and_bound_dict[new_knob_key] = [knob, lower_bound, upper_bound]
+        if(knob.get_value_type() == "boolean"):
+            self.knob_and_bound_dict[new_knob_key] = [knob, False, True] 
+        else:
+            if(upper_bound > knob.get_upper_bound()):
+                warnings.warn("Upper bound defaulted to knob maximum.")
+            upper_bound = min(upper_bound, knob.get_upper_bound()) 
+            if(lower_bound < knob.get_lower_bound()):
+                warnings.warn("Lower bound defaulted to knob minimum.")
+            lower_bound = max(lower_bound, knob.get_lower_bound()) 
+            self.knob_and_bound_dict[new_knob_key] = [knob, lower_bound, upper_bound]
     
     "Removes the knob with name knob_name from the autotuner via pop"
     def remove_knob(self, knob_name):
         return self.knob_and_bound_dict.pop(knob_name)
 
+    #TODO: Force this to respect the same rules as add_knob: autotuner should never have a lower bound than the knob allows. 
+    "Changes the knob bound."
     def change_knob_bound(self, knob_name, lower_bound, upper_bound):
         knob_list = self.knob_and_bound_dict[knob_name]
+        knob = knob_list[0] 
+        if(lower_bound < knob.get_lower_bound()):
+            warnings.warn("Lower bound defaulted to knob minimum")
+        lower_bound = min(lower_bound, knob_get_lower_bound())
+        if(upper_bound > knob_get_upper_bound()):
+            warnings.warn("Upper bound defaulted to knob maximum") 
+        upper_bound = max(upper_bound, knob.get_upper_bound()) 
         knob_list[1] = lower_bound 
         knob_list[2] = upper_bound 
 

@@ -19,17 +19,25 @@ class Spoof_Tunable(Tunable):
             current_int_knob = Knob(
                 self, {'name':'int_knob_'+str(i + 1), 'initial_value':0, 
                 'min_value':-np.inf, 'max_value':np.inf, 'typical_increment':1, 'max_increment':np.inf, 'increment_wait_time':0.0, 'value_type':'int'})
-            self.knobs_dict['int_knob'+str(i + 1)] = current_int_knob 
+            self.knobs_dict['int_knob_'+str(i + 1)] = current_int_knob 
         for i in range(number_boolean_knobs):
             current_boolean_knob = Knob(
                 self, {'name':'boolean_knob_'+str(i + 1), 'initial_value':False, 
                 'min_value': 0, 'max_value':1, 'typical_increment':1, 'max_increment':np.inf, 'increment_wait_time':0.0, 'value_type':'boolean'})
-            self.knobs_dict['boolean_knob'+str(i + 1)] = current_boolean_knob 
+            self.knobs_dict['boolean_knob_'+str(i + 1)] = current_boolean_knob 
         
     
     """Implementation of required class method. Note that it returns a shallow copy of the tuning knob dict."""
     def get_tuning_knobs(self):
         return self.knobs_dict.copy()
+
+    """Implementation of required class method."""
+    def get_tuning_knobs_and_bounds():
+        return_dict = {} 
+        for key in self.knobs_dict:
+            knob = self.knobs_dict[key] 
+            return_dict[key] = (knob, knob.get_lower_bound(), knob.get_upper_bound()) 
+        return return_dict 
 
     """Implementation of required class method."""
     def tune_knob(self, knob_name, increment):
@@ -69,7 +77,7 @@ class Spoof_Tunable(Tunable):
             elif key.startswith("int"):
                 int_knob_values.append(self.knobs_dict[key].get_value()) 
             elif key.startswith("boolean"):
-                boolean_knob_values.append(self.knob_dict[key].get_value())
+                boolean_knob_values.append(self.knobs_dict[key].get_value())
         value = amplitude * np.exp(-(sum(np.square(float_knob_values)) + sum(np.square(int_knob_values)))/(2 * sigma))
         if np.any(boolean_knob_values):
             value *= -1
@@ -80,12 +88,14 @@ class Spoof_Tunable(Tunable):
         
 
 def main():
-    my_spoof_tunable = Spoof_Tunable() 
+    my_spoof_tunable = Spoof_Tunable(number_boolean_knobs = 1, number_int_knobs = 1) 
     my_knobs_dict = my_spoof_tunable.get_tuning_knobs() 
     my_autotuner = Autotuner(my_spoof_tunable.give_spoofed_signal)
     my_autotuner.add_knob(my_knobs_dict["float_knob_1"], -2.0, 2.0) 
     my_autotuner.add_knob(my_knobs_dict["float_knob_2"], -2.0, 2.0) 
-    my_results = my_autotuner.brute_force_tune(12, autoset = False) 
+    my_autotuner.add_knob(my_knobs_dict["int_knob_1"], -2, 2) 
+    my_autotuner.add_knob(my_knobs_dict["boolean_knob_1"])
+    my_results = my_autotuner.brute_force_tune(12, autoset = True) 
     print(my_results) 
     for key in my_knobs_dict:
         print(key + str(" = " + str(my_knobs_dict[key].get_value())))
