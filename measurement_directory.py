@@ -6,15 +6,17 @@ import parse
 MONTH_DIR_FMT = '%Y%m'
 
 
-def todays_measurements():
-    # name the run test if you want test files to be cleaned up later
+def todays_measurements(basepath=''):
+    """returns list of run_folders in basepath/month/date folder. By default, 
+    basepath is the cwd.
+    """
     today = datetime.datetime.today()
     month = datetime.datetime.strftime(today, MONTH_DIR_FMT)
     date = datetime.datetime.strftime(today, '%y%m%d')
-    month_date_dir = r'{month}\{date}'.format(
-        month=month, date=date)
-    if not os.path.exists(month):
-        os.mkdir(month)
+    month_dir = os.path.join(basepath, month)
+    month_date_dir = os.path.join(month_dir, date)
+    if not os.path.exists(month_dir):
+        os.mkdir(month_dir)
     if not os.path.exists(month_date_dir):
         os.mkdir(month_date_dir)
         return []
@@ -28,8 +30,8 @@ def todays_measurements():
     return run_folders
 
 
-def suggest_run_name(newrun_input=None, appendrun_input=None):
-    run_folders = todays_measurements()
+def suggest_run_name(newrun_input=None, appendrun_input=None, basepath=''):
+    run_folders = todays_measurements(basepath=basepath)
     runs = {}
     for directory in run_folders:
         result = parse.parse('run{}_{}', directory)
@@ -60,20 +62,21 @@ def suggest_run_name(newrun_input=None, appendrun_input=None):
     return measurement_name
 
 
-def measurement_directory(warn=False, measurement_name=None):
+def measurement_directory(warn=False, measurement_name=None, basepath=''):
     if measurement_name is None:
         measurement_name = suggest_run_name()
     today = datetime.datetime.today()
     month = datetime.datetime.strftime(today, MONTH_DIR_FMT)
     date = datetime.datetime.strftime(today, '%y%m%d')
-    if not os.path.exists(month):
-        os.mkdir(month)
-    if not os.path.exists(r'{month}\{date}'.format(month=month, date=date)):
-        os.mkdir(r'{month}\{date}'.format(month=month, date=date))
+    month_dir = os.path.join(basepath, month)
+    month_date_dir = os.path.join(month_dir, date)
+    if not os.path.exists(month_dir):
+        os.mkdir(month_dir)
+    if not os.path.exists(month_date_dir):
+        os.mkdir(month_date_dir)
     ready = False
     while not ready:
-        measurement_dir = r'{month}\{date}\{measurement_name}'.format(
-            month=month, date=date, measurement_name=measurement_name)
+        measurement_dir = os.path.join(month_date_dir, measurement_name)
         # breakpoint()
         if not os.path.exists(measurement_dir):
             os.mkdir(measurement_dir)
