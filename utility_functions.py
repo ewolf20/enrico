@@ -166,3 +166,15 @@ def load_bec1serverpath():
         breadboard_dict = json.load(my_file)
         bec1_server_path = breadboard_dict.get("BEC1server_path")
     return bec1_server_path
+
+
+def load_analysis_path():
+    """
+    Returns a dictionary of folder paths containing .m files for analysis and basepath for where data is stored (locally or on a server).
+    Requires a analysis_config.json file in the same folder as utility_functions.py.
+    """
+    import json
+    import os
+    with open(os.path.join(os.path.dirname(__file__), "analysis_config.json")) as my_file:
+        analysis_paths = json.load(my_file)
+    return analysis_paths

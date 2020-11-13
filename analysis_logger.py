@@ -197,6 +197,16 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_i
 
 
 if __name__ == '__main__':
+    from utility_functions import load_analysis_path
+    analysis_paths = load_analysis_path()
+
+    # try/except block is a stopgap to keep things running smoothly even without analysis_config.json
+    try:
+        analysis_paths = load_analysis_path()
+        data_basepath = analysis_paths['data_basepath']
+    except FileNotFoundError:
+        data_basepath = ''
+        print('analysis_config.json not found, using default settings.')
     bec1server_path = load_bec1serverpath()
     analysis_shorthand = {'zt': 'zcam_triple_imaging',
                           'zd': 'zcam_dual_imaging',
@@ -207,7 +217,7 @@ if __name__ == '__main__':
     analysis_type = analysis_shorthand[analysis_key]
     print('{analysis} selected'.format(analysis=analysis_type))
     print('existing runs: ')
-    measurement_names = todays_measurements()
+    measurement_names = todays_measurements(basepath=data_basepath)
     if len(measurement_names) == 0:
         raise ValueError('No measurements yet today.')
     for name in sorted(measurement_names):
@@ -216,7 +226,7 @@ if __name__ == '__main__':
                 print(name)
                 last_output = name
     watchfolder = measurement_directory(
-        measurement_name=suggest_run_name(newrun_input='n', appendrun_input='y'))
+        measurement_name=suggest_run_name(newrun_input='n', appendrun_input='y', basepath=data_basepath))
     save_images = True
     save_images_input = input('Keep images after analysis? [y/n]: '
                               )
