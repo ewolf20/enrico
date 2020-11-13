@@ -77,7 +77,7 @@ def rename_file(filename):
 
 
 def main(measurement_name=None, n_images_per_run=None, existing_directory_warning=False,
-         backup_to_bec1server=True, max_idle_time=60 * 5):
+         backup_to_bec1server=True, max_idle_time=60 * 3):
 
     refresh_time = 1  # seconds
 
@@ -234,8 +234,8 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
         idle_time = (datetime.datetime.now() -
                      previous_update_time).total_seconds()
         if idle_time > max_idle_time and not idle_message_sent:
-            idle_message = 'Measurement {id} idle, no new images for {min}'.format(id=measurement_dir,
-                                                                                   min=str(idle_time / 60))
+            idle_message = 'Measurement {id} idle, no new images for {min}min.'.format(id=measurement_dir,
+                                                                                       min=str(int(idle_time / 60)))
             enrico_bot.post_message(idle_message)
             print(idle_message)
             idle_message_sent = True
