@@ -189,7 +189,7 @@ class Autotuner():
         if(lower_bound < knob.get_lower_bound()):
             warnings.warn("Lower bound defaulted to knob minimum")
         lower_bound = min(lower_bound, knob_get_lower_bound())
-        if(upper_bound > knob_get_upper_bound()):
+        if(upper_bound > knob.get_upper_bound()):
             warnings.warn("Upper bound defaulted to knob maximum") 
         upper_bound = max(upper_bound, knob.get_upper_bound()) 
         knob_list[1] = lower_bound 
@@ -234,11 +234,10 @@ class Autotuner():
                 set_code = knob.set_value(knob_set_value) 
                 if(set_code < 0):
                     return (set_code, None) 
-                else:
-                    current_signal = self.signal_function() 
-                    if(current_signal > maximum_signal):
-                        maximum_signal = current_signal 
-                        optimal_knob_values_array = search_array[:,j] 
+            current_signal = self.signal_function() 
+            if(current_signal > maximum_signal):
+                maximum_signal = current_signal 
+                optimal_knob_values_array = search_array[:,j] 
         optimal_values_dict = {} 
         for knob, value in zip(knob_list, optimal_knob_values_array):
             optimal_values_dict[knob.get_name()] = value 

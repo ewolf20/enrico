@@ -78,8 +78,11 @@ class Spoof_Tunable(Tunable):
                 int_knob_values.append(self.knobs_dict[key].get_value()) 
             elif key.startswith("boolean"):
                 boolean_knob_values.append(self.knobs_dict[key].get_value())
-        value = amplitude * np.exp(-(sum(np.square(float_knob_values)) + sum(np.square(int_knob_values)))/(2 * sigma))
-        if np.any(boolean_knob_values):
+        float_knob_array = np.array(float_knob_values) 
+        int_knob_array = np.array(int_knob_values) 
+        boolean_knob_array = np.array(boolean_knob_values) 
+        value = amplitude * np.exp(-(sum(np.square(float_knob_array)) + sum(np.square(int_knob_array)))/(2 * sigma))
+        if np.any(boolean_knob_array):
             value *= -1
         if(noise > 0.0):
             value += self.rng.normal(0, noise) 
@@ -95,7 +98,8 @@ def main():
     my_autotuner.add_knob(my_knobs_dict["float_knob_2"], -2.0, 2.0) 
     my_autotuner.add_knob(my_knobs_dict["int_knob_1"], -2, 2) 
     my_autotuner.add_knob(my_knobs_dict["boolean_knob_1"])
-    my_results = my_autotuner.brute_force_tune(12, autoset = True) 
+    my_results = my_autotuner.brute_force_tune(5, autoset = True) 
+    print(my_spoof_tunable.get_evals())
     print(my_results) 
     for key in my_knobs_dict:
         print(key + str(" = " + str(my_knobs_dict[key].get_value())))
