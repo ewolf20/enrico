@@ -9,10 +9,18 @@ try:
     ycam_path, dualimaging_path, tripleimaging_path = [analysis_paths[key] for key in ["ycam_imaging_folder",
                                                                                        "triple_imaging_folder",
                                                                                        "dual_imaging_folder"]]
-except FileNotFoundError: #stopgap until all computers which do analysis have an analysis_config.json
+except FileNotFoundError:  # stopgap until all computers which do analysis have an analysis_config.json
     ycam_path = r'C:\Users\FermiCam2\Desktop\MatlabAnalysis\Fermi1_MatlabImageAnalysis'
     dualimaging_path = r'C:\Users\Fermi1\Documents\GitHub\Fermi1_MatlabImageAnalysis'
     tripleimaging_path = r'C:\Users\Fermi1\Documents\GitHub\Fermi1_MatlabImageAnalysis'
+
+
+def load_matlab_engine():
+    print('loading matlab engine...')
+    import matlab.engine
+    eng = matlab.engine.start_matlab()
+    print('matlab engine loaded')
+    return eng
 
 
 def numpyfy_MATLABarray(matlab_array):
@@ -131,6 +139,68 @@ def getTripleImagingAnalysis(eng, filepaths,
                 'At least one of {key} was not returned from MATLAB.'.format(key=str(analysis_keys)))
         else:
             print('MATLAB analysis finished but python wrapper failed.')
+
+class AnalysisSettingsUpdater:
+
+    # A class for updating MATLAB analysis settings by passing the most recent image(s) to a matlab function that requires manual user input
+    # to set various settings (e.g. the normBox coordinates).
+
+    def __init__(self, wrapped_matlab_func, images_per_shot):
+        """
+        Initialize the object with wrapped_matlab_func, which passes a tuple of filepath(s) (or a single filepath string) to a MATLAB engine and analysis function, and the number
+        of images (and hence filepaths) to be retrieved for wrapped_matlab_func (e.g. 3 for triple imaging).
+        """
+        self.matlab_func = wrapped_matlab_func
+        self.images_per_shot = images_per_shot
+        self.eng = load_matlab_engine()
+
+    def update(self):
+        """
+        Update matlab analysis settings config file.
+        """
+        from measurement_directory import measurement_directory, suggest_run_name, run_ids_from_filenames
+        import os
+
+        def get_last_filepaths():
+            # returns either one path string or a list of paths
+            watchfolder = measurement_directory(measurement_name=suggest_run_name(newrun_input='n',
+                                                                                  appendrun_input='y'))
+            files = [filename for filename in os.listdir(watchfolder)]
+            filesSPE = []
+            for file in files:  # filter out non .spe files
+                if '.spe' in file:
+                    filesSPE.append(file)
+            files = filesSPE
+            run_ids = sorted(run_ids_from_filenames(files))
+            paths = [os.path.join(watchfolder, str(run_ids[-1]) + '_{idx}.spe'.format(idx=str(i)))
+                     for i in range(self.images_per_shot)]
+            if len(paths) == 1:
+                return paths[0]
+            return paths
+
+        paths = get_last_filepaths()
+        print('Updating analysis settings using: ')
+        print(paths)
+        self.matlab_func(self.eng, paths)
+
+        # allow user to run update again
+        done = input('Done calibrating analysis settings? [y/n]: ')
+        if done == 'n':
+            self.update()
+
+
+def update_dual_imaging_settings(eng, filepath, analysis_library_path=dualimaging_path):
+    # wrapper for executing MATLAB function
+    eng.eval(r'cd ' + analysis_library_path, nargout=0)
+    eng.INSERTMATLABFUNCTIONHERE(filepath)  # TODO
+
+
+def update_triple_imaging_settings(eng, filepaths, analysis_library_path=tripleimaging_path):
+    # wrapper for executing MATLAB function
+    eng.eval(r'cd ' + analysis_library_path, nargout=0)
+    eng.INSERTMATLABFUNCTIONHERE(
+        filepaths[0], filepaths[1], filepaths[2])  # TODO
+
 
 ##################################################################################################################################
 
