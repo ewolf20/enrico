@@ -2,7 +2,17 @@
 
 from PIL import Image
 import numpy as np
-from random import randint
+
+try:
+    from utility_functions import load_analysis_path
+    analysis_paths = load_analysis_path()
+    ycam_path, dualimaging_path, tripleimaging_path = [analysis_paths[key] for key in ["ycam_imaging_folder",
+                                                                                       "triple_imaging_folder",
+                                                                                       "dual_imaging_folder"]]
+except FileNotFoundError: #stopgap until all computers which do analysis have an analysis_config.json
+    ycam_path = r'C:\Users\FermiCam2\Desktop\MatlabAnalysis\Fermi1_MatlabImageAnalysis'
+    dualimaging_path = r'C:\Users\Fermi1\Documents\GitHub\Fermi1_MatlabImageAnalysis'
+    tripleimaging_path = r'C:\Users\Fermi1\Documents\GitHub\Fermi1_MatlabImageAnalysis'
 
 
 def numpyfy_MATLABarray(matlab_array):
@@ -19,7 +29,7 @@ ycam_analyzed_var_names = ['bareNcntAverageMarqueeBoxValues',
 
 
 def getYcamAnalysis(eng, filepath,
-                    analysis_library_path=r'C:\Users\FermiCam2\Desktop\MatlabAnalysis\Fermi1_MatlabImageAnalysis',
+                    analysis_library_path=ycam_path,
                     marqueeBox=None, normBox=None, save_jpg_preview=True):
     try:
         eng.eval(r'cd ' + analysis_library_path, nargout=0)
@@ -46,7 +56,7 @@ dual_imaging_analyzed_var_names = ['K_NcntLarge', 'Na_NcntLarge', 'K_NcntSmall',
 
 
 def getDualImagingAnalysis(eng, filepath,
-                           analysis_library_path=r'C:\Users\Fermi1\Documents\GitHub\Fermi1_MatlabImageAnalysis',
+                           analysis_library_path=dualimaging_path,
                            marqueeBox=None, normBox=None, save_jpg_preview=True):
     try:
         eng.eval(r'cd ' + analysis_library_path, nargout=0)
@@ -85,7 +95,7 @@ triple_imaging_analyzed_var_names = ['K1_bareNcntAverageMarqueeBoxValues', 'K2_b
 
 
 def getTripleImagingAnalysis(eng, filepaths,
-                             analysis_library_path=r'C:\Users\Fermi1\Documents\GitHub\Fermi1_MatlabImageAnalysis',
+                             analysis_library_path=tripleimaging_path,
                              marqueeBox=None, normBox=None, save_jpg_preview=True):
     try:
         eng.eval(r'cd ' + analysis_library_path, nargout=0)
@@ -129,6 +139,7 @@ fake_analysis1_var_names = ['fake analysis 1', 'fake analysis 2']
 
 
 def fake_analysis1(filepath, previous_settings=None):
+    from random import randint
     time.sleep(randint(0, 2))
     return {'fake analysis 1': randint(0, 42), 'fake analysis 2': randint(0, 42)}, None
 
@@ -137,5 +148,6 @@ fake_analysis2_var_names = ['fake analysis 3', 'fake analysis 4']
 
 
 def fake_analysis2(filepath, previous_settings=None):
+    from random import randint
     time.sleep(randint(0, 5))
     return {'fake analysis 3': randint(0, 42), 'fake analysis 4': randint(0, 42)}, None
