@@ -153,7 +153,6 @@ class Autotuner():
     Note: Knobs can also be added post-initialization with add_knob()
     """
 
-    #TODO: Add warnings when knob addition overrides the given bounds to the knob values
     def __init__(self, signal_function, knobs_and_bounds_dict = None):
         self.signal_function = signal_function 
         self.knob_and_bound_dict = {}
@@ -177,75 +176,104 @@ class Autotuner():
             lower_bound = max(lower_bound, knob.get_lower_bound()) 
             self.knob_and_bound_dict[new_knob_key] = [knob, lower_bound, upper_bound]
     
-    "Removes the knob with name knob_name from the autotuner via pop"
+    "Removes and returns the knob with name knob_name from the autotuner via pop"
     def remove_knob(self, knob_name):
-        return self.knob_and_bound_dict.pop(knob_name)
+        return self.knob_and_bound_dict.pop(knob_name)[0]
 
-    #TODO: Force this to respect the same rules as add_knob: autotuner should never have a lower bound than the knob allows. 
     "Changes the knob bound."
     def change_knob_bound(self, knob_name, lower_bound, upper_bound):
         knob_list = self.knob_and_bound_dict[knob_name]
-        knob = knob_list[0] 
+        knob = knob_list[0]
         if(lower_bound < knob.get_lower_bound()):
             warnings.warn("Lower bound defaulted to knob minimum")
-        lower_bound = min(lower_bound, knob_get_lower_bound())
+        lower_bound = max(lower_bound, knob.get_lower_bound())
         if(upper_bound > knob.get_upper_bound()):
-            warnings.warn("Upper bound defaulted to knob maximum") 
-        upper_bound = max(upper_bound, knob.get_upper_bound()) 
-        knob_list[1] = lower_bound 
-        knob_list[2] = upper_bound 
+            warnings.warn("Upper bound defaulted to knob maximum")
+        upper_bound = min(upper_bound, knob.get_upper_bound())
+        knob_list[1] = lower_bound
+        knob_list[2] = upper_bound
 
     """Brute-force searches a region of knob parameter space.
     Divides knob parameter space into a grid of points, evaluates the signal at each point, and returns the parameters
     where it is MAXIMIZED.
+
     Parameters:
     args[0]: Either a positive integer or a dict of iterables.
     If an integer c is passed, manually creates a grid which contains c different values for each knob, evenly spaced
     between the lower and upper bounds, subject to the requirement that each knobs' datatype is respected. Mainly for convenience.
     If a dict of iterables (e.g. lists), the dict is used to create a grid to be scanned over. If any knob's name does not appear in the dict, 
-    it is left at its current value. This is the primary mode of operation when brute_force_tune is used in other 
-    autoset: Whether the tuner should, after completion, automatically set the knobs to the optimal value it found. Default is true. 
+    it is left at its current value. This is the primary mode of operation when brute_force_tune is used in other methods
+    autoset: Whether the tuner should, after completion, automatically set the knobs to the most optimal value it found. Default is false. 
+    number_optimal_points: The number of optimal points to return: if this is 3, brute force search returns the three best points it found. 
+    simple_output: Whether to simplify the output in the case where number_optimal_points = 1. Default false. 
+    verbose: if True, the last i and j values looped over are appended to the end of the returned tuple. Useful for debugging.
     
     Returns:
-    A tuple (0, valuedict) if the set occurred correctly; valuedict contains the optimal values found for each knob, with keys the knob names.
-    A tuple (errorcode, None) if the set did not occur correctly. Error codes are all negative integers."""
+    A tuple (0, [(signal1, valuedict1), (signal2, valuedict2), ... (signalN, valuedictN)]) 
+        if the search occurred correctly; valuedict contains the optimal values found for each knob, with keys the knob names.
+        The value dicts are in order of most to least optimal parameters, i.e. decreasing signal.
+        If number_optimal_points == 1 and simple_output, then returns instead (0, signal1, valuedict1) for convenience.
+    A tuple (errorcode, [(signal1, valuedict1), (signal2, valuedict2), ... (signalM, valuedictM)]) if the set did not occur correctly;
+    the list is the best values found before the crash and may be empty. 
+    
+    Notes:
+    Brute force search makes no stability promises if it finds two points with the same signal value."""
 
-    def brute_force_tune(self, *args, autoset = True):
+    def brute_force_tune(self, *args, autoset = False, number_optimal_points = 1, simple_output = False, verbose = False):
         #Hacky way to check which input type we are given
         if(len(args) == 0):
             full_space_array_dict = self.get_full_space_array_dict()
-            knob_list, search_array = self.make_searchgrid_from_array_dict(full_space_array_dict) 
+            knob_list, search_array = self._make_searchgrid_from_array_dict(full_space_array_dict) 
         else:
             try:
                 #If it's a dictionary, it'll be iterable
                 for key in args[0]:
                     break
-                knob_list, search_array = self.make_searchgrid_from_array_dict(args[0]) 
+                knob_list, search_array = self._make_searchgrid_from_array_dict(args[0]) 
             except TypeError:
                 #If it's an integer, it won't be
                 full_space_array_dict = self.get_full_space_array_dict(number_points = args[0]) 
-                knob_list, search_array = self.make_searchgrid_from_array_dict(full_space_array_dict) 
-        maximum_signal = -np.inf 
-        optimal_knob_values_array = None 
+                knob_list, search_array = self._make_searchgrid_from_array_dict(full_space_array_dict) 
+        signal_and_j_list = []
         #The first index of search_array_list is the knob; the second index is the value to which to set it.
         #That is, to iterate over values, you should iterate over the second index first
         for j in range(len(search_array[0])):
-            for knob, knob_set_value in zip(knob_list, search_array[:,j]):
+            for knob, knob_set_value, i in zip(knob_list, search_array[:,j], range(len(knob_list))):
                 set_code = knob.set_value(knob_set_value) 
                 if(set_code < 0):
-                    return (set_code, None) 
+                    best_signal_and_value_dict_list = self._brute_force_tune_signal_and_j_list_helper(signal_and_j_list, search_array, knob_list, number_optimal_points)
+                    if(verbose):
+                        return (set_code, best_signal_and_value_dict_list, i, j) 
+                    else:
+                        return (set_code, best_signal_and_value_dict_list)
             current_signal = self.signal_function() 
-            if(current_signal > maximum_signal):
-                maximum_signal = current_signal 
-                optimal_knob_values_array = search_array[:,j] 
-        optimal_values_dict = {} 
-        for knob, value in zip(knob_list, optimal_knob_values_array):
-            optimal_values_dict[knob.get_name()] = value 
-            if(autoset):
-                knob.set_value(value)
-        return (0, optimal_values_dict) 
+            signal_and_j_list.append((current_signal, j)) 
+        best_signal_and_value_dict_list = self._brute_force_tune_signal_and_j_list_helper(signal_and_j_list, search_array, knob_list, number_optimal_points)
+        if(autoset):
+            best_value_dict = best_signal_and_value_dict_list[0][1] 
+            for knob in knob_list:
+                optimal_knob_value = best_value_dict[knob.get_name()] 
+                knob.set_value(optimal_knob_value) 
+        if(verbose):
+            return (0, best_signal_and_value_dict_list, len(search_array) - 1, len(search_array[0]) - 1) 
+        else:
+            return (0, best_signal_and_value_dict_list)
 
-        
+    """A helper function for brute_force_tune which, given a list of signals and j values, returns a trimmed list of (signal, valuedict) tuples"""
+    @staticmethod
+    def _brute_force_tune_signal_and_j_list_helper(signal_and_j_list, search_array, knob_list, number_optimal_points):
+        sorted_signal_and_j_list = sorted(signal_and_j_list, key = (lambda v: v[0]), reverse = True)
+        best_signal_and_j_list = sorted_signal_and_j_list[:number_optimal_points] 
+        best_signal_and_value_dict_list = [] 
+        for signal_and_j_tuple in best_signal_and_j_list:
+            values_dict = {} 
+            signal_value = signal_and_j_tuple[0] 
+            values_array = search_array[:, signal_and_j_tuple[1]] 
+            for knob, value in zip(knob_list, values_array):
+                values_dict[knob.get_name()] = value 
+            best_signal_and_value_dict_list.append((signal_value, values_dict)) 
+        return best_signal_and_value_dict_list 
+
 
 
 
@@ -260,7 +288,7 @@ class Autotuner():
     The column arrays are, specifically, flattened outputs of np.meshgrid for each knob.
     Note: This will break, hard, if you try to pass in anything but numeric (or boolean) types in the arrays."""
 
-    def make_searchgrid_from_array_dict(self, arrays_dict):
+    def _make_searchgrid_from_array_dict(self, arrays_dict):
         if(arrays_dict == None):
             return (None, None) 
         if(len(arrays_dict) == 0):
@@ -322,6 +350,25 @@ class Autotuner():
                 else:
                     array_dict[key] = np.linspace(current_knob_lower_bound, current_knob_upper_bound, number_points)
         return array_dict 
+
+    """An iterated brute force search that successively narrows the search window.
+    Executes a brute force search on the entire parameter space, then shrinks the parameter space to extend only
+    around points with the highest signal and iterates. 
+    Parameters:
+        number_points: the number of points (in each parameter) to use in a given brute force scan
+        depth: the number of times to conduct a brute force search-shrink cycle.
+        explored_points: The number of points about which to conduct a brute force search when going to 
+        a subsequent iteration. If 3, a brute force search would be conducted about the 3 best points from 
+        the previous iteration.
+        autoset: If true, the knobs are automatically set to the best values when the function terminates.
+    Returns:
+        A tuple (0, valuedict) if the set occurred correctly; valuedict contains the optimal values found for each knob, with keys the knob names.
+        A tuple (errorcode, None) if the set did not occur correctly. Error codes are all negative integers."""
+
+    def iterated_brute_force_tune(self, number_points = 5, depth = 3, explored_points = 1, autoset = True):
+        pass
+
+
 
 
                 
