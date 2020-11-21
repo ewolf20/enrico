@@ -351,6 +351,54 @@ class Autotuner():
                     array_dict[key] = np.linspace(current_knob_lower_bound, current_knob_upper_bound, number_points)
         return array_dict 
 
+
+    """A helper function for iterated brute force search that creates an array_dict centered on a specified point
+    Given a dict containing the knob values which specify a certain point in parameter space, creates an array dict 
+    that can be used to construct a searchgrid centered on that point which is smaller than a previous searchgrid.
+
+    Parameters:
+    point_values_dict: A dict {knob_name: knob_value} of knob values at the point about which we expand.
+    point_spacing_dict: A dict {knob_name: knob_interval_width} of desired spacings between points in the new array_dict.
+        Essentially, the new array_dict contains evenly spaced values in the interval [-knob_interval_width + knob_value, knob_interval_width + knob_value] 
+    new_array_number_points: The number of points for each knob in the array_dict. Same silent rounding as in get_full_space_array_dict.
+    expand_booleans: If True, the new array_dict will always contain [False, True] for any boolean input, provided new_array_number_points > 1.
+        If False, the new array_dict will only contain the boolean value in point_values_dict. Default True.
+    
+    Returns:
+        An array_dict as in get_full_space_array_dict, centered on the point specified by point_values_dict.
+    """
+
+    def get_array_dict_about_point(point_values_dict, point_interval_width_dict, new_array_number_points, expand_booleans = True):
+        returned_array_dict = {}
+        for key in point_values_dict:
+            point_value = point_values_dict[key]
+            point_interval_width = point_interval_width_dict[key] 
+            point_knob = self.knob_and_bound_dict[key][0] 
+            if(point_knob.get_value_type() == "boolean"):
+                if(expand_booleans):
+                    returned_array_dict[key] = np.array([False, True]) 
+                else:
+                    returned_array_dict[key] = np.array([point_value])
+            elif(point_knob.get_value_type() == "int"):
+                point_interval_width_rounded = int(np.round(point_interval_width)) 
+                point_interval_upper_bound = point_value + point_interval_width_rounded 
+                point_interval_lower_bound = point_value - point_interval_width_rounded 
+                number_points = min(new_array_number_points, point_interval_upper_bound - point_interval_lower_bound + 1) 
+                if(number_points == 1):
+                    returned_array_dict[key] = np.array([point_value]) 
+                else:
+                    point_array = np.unique(np.round(np.linspace(point_interval_lower_bound, point_interval_upper_bound, number_points))) 
+                    point_array = point_array.astype(int) 
+                    returned_array_dict[key] = point_array 
+            elif(point_knob.get_value_type() == "float"):
+                returned_array_dict[key] = np.linspace(point_value - point_interval_width, point_value + point_interval_width, new_array_number_points) 
+        return returned_array_dict
+
+
+
+
+
+
     """An iterated brute force search that successively narrows the search window.
     Executes a brute force search on the entire parameter space, then shrinks the parameter space to extend only
     around points with the highest signal and iterates. 
@@ -365,8 +413,67 @@ class Autotuner():
         A tuple (0, valuedict) if the set occurred correctly; valuedict contains the optimal values found for each knob, with keys the knob names.
         A tuple (errorcode, None) if the set did not occur correctly. Error codes are all negative integers."""
 
-    def iterated_brute_force_tune(self, number_points = 5, depth = 3, explored_points = 1, autoset = True):
-        pass
+    #TODO: Consider adding support for searching less than the entire parameter space
+    #TODO: Integrate the verbose and simple output flags 
+    def iterated_brute_force_tune(
+                self, points_in_brute_force_grid = 5, depth = 3, explored_points_per_level = 1,
+                number_optimal_points = 1, autoset = False):
+        current_array_dict_list = [self.get_full_space_array_dict(points_in_brute_force_grid)]
+        for i in range(depth):
+            current_spacing_dict_list = [] 
+            for current_array_dict in current_array_dict_list:
+                current_spacing_dict = {}
+                for key in current_array_dict:
+                    current_array = current_array_dict[key]
+                    if(len(current_array) == 1):
+                        current_spacing_dict[key] = 0
+                    else:
+                        current_spacing_dict[key] = abs(current_array[1] - current_array[0]) 
+                current_spacing_dict_list.append(current_spacing_dict) 
+            brute_force_tune_signal_and_values_tuple_list = []
+            #This list contains the point spacings from the array that generated each optimal value. Needed for expanding. 
+            brute_force_tune_spacing_dict_list = []
+            for array_dict, spacing_dict in zip(current_array_dict_list, current_spacing_dict_list):
+                brute_force_tune_results = self.brute_force_tune(array_dict, number_optimal_points = max(explored_points_per_level, number_optimal_points))
+                brute_force_tune_signal_and_values_tuple_list.extend(brute_force_tune_results[1]) 
+                brute_force_tune_spacing_dict_list.extend([spacing_dict] * len(brute_force_tune_results[1])) 
+                #If an error code came back, just return the best points you have
+                if(brute_force_tune_results[0] != 0):
+                    sorted_brute_force_tune_signal_and_values_tuple_list = sorted(brute_force_tune_signal_and_values_tuple_list,
+                                                                                key = (lambda v: v[0]), reverse = True)
+                    trimmed_brute_force_tune_signal_and_values_tuple_list = sorted_brute_force_tune_signal_and_values_tuple_list[:number_optimal_points] 
+                    return (brute_force_tune_results[0], trimmed_brute_force_tune_signal_and_values_tuple_list)
+            #Having completed one iteration, find the best points and corresponding spacings 
+            signal_and_values_tuples_and_spacings_list = list(zip(brute_force_tune_signal_and_values_tuple_list, brute_force_tune_spacing_dict_list)) 
+            sorted_signal_and_values_tuples_and_spacings_list = sorted(signal_and_values_tuples_and_spacings_list, 
+                                                                        key = (lambda v: v[0][0]), reverse = True)
+            trimmed_signal_and_values_tuples_and_spacings_list = sorted_signal_and_values_tuples_and_spacings_list[:explored_points_per_level]
+            if(i < depth - 1): 
+                current_array_dict_list = [] 
+                for signal_and_values_tuple_and_spacing in trimmed_signal_and_values_tuples_and_spacings_list:
+                    values_dict = signal_and_values_tuple_and_spacing[0][1] 
+                    spacing_dict = signal_and_values_tuple_and_spacing[1] 
+                    array_dict = get_array_dict_about_point(values_dict, spacing_dict, points_in_brute_force_grid)
+                    current_array_dict_list.append(array_dict) 
+        #Re-trim the last sorted list of signal and values tuples
+        final_sorted_signal_and_values_tuple_list = sorted(brute_force_tune_signal_and_values_tuple_list, key = (lambda v: v[0]), reverse = True) 
+        final_trimmed_signal_and_values_tuple_list = final_sorted_signal_and_values_tuple_list[:number_optimal_points] 
+        if(autoset):
+            best_values_dict = final_trimmed_signal_and_values_tuple_list[0][1] 
+            for key in best_values_dict:
+                knob = self.knob_and_bound_dict[key][0] 
+                knob.set_value(best_values_dict[key]) 
+        return (0, final_trimmed_signal_and_values_tuple_list) 
+        
+
+
+                
+             
+            
+                
+                
+
+
 
 
 

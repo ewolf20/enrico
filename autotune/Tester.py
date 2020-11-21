@@ -98,9 +98,7 @@ def main():
     my_autotuner.add_knob(my_knobs_dict["float_knob_2"], -2.0, 2.0) 
     my_autotuner.add_knob(my_knobs_dict["int_knob_1"], -2, 2) 
     my_autotuner.add_knob(my_knobs_dict["boolean_knob_1"])
-    temp_knob = my_autotuner.remove_knob("float_knob_1")
-    my_autotuner.add_knob(my_knobs_dict["float_knob_1"], -2.0, 2.0)
-    my_results = my_autotuner.brute_force_tune(20, autoset = True, number_optimal_points = 3, verbose = True) 
+    my_results = my_autotuner.brute_force_tune(20, autoset = True) 
     for key in my_knobs_dict:
         print(key + str(" = " + str(my_knobs_dict[key].get_value())))
     print(str(my_results))
