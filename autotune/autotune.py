@@ -313,7 +313,7 @@ class Autotuner():
     -i.e. if 5 points are stipulated for a boolean knob or an int knob bounded by 1 and 4 - the number of points
     is silently rounded down to make sense.
     Returns:
-    A dict of arrays of values for each knob which, if stitched together, cover the whole space. Should be passed to 
+    A dict of np arrays of values for each knob which, if stitched together, cover the whole space. Should be passed to 
     make_searchgrid_from_array_dict in order to get a searchgrid suitable for scanning.
     Notes:
     If only one point is specified, booleans default to False, while numeric knobs default to the average of their upper and lower bounds,
@@ -329,24 +329,24 @@ class Autotuner():
             if(current_knob.get_value_type() == "boolean"):
                 current_number_points = min(current_number_points, 2) 
                 if(current_number_points == 1):
-                    array_dict[key] = [False] 
+                    array_dict[key] = np.array([False])
                 else:
-                    array_dict[key] = [False, True]
+                    array_dict[key] = np.array([False, True])
             elif(current_knob.get_value_type() == "int"):
                 current_knob_lower_bound = self.knob_and_bound_dict[key][1] 
                 current_knob_upper_bound = self.knob_and_bound_dict[key][2]
                 current_number_points = min(current_number_points, current_knob_upper_bound - current_knob_lower_bound + 1) 
                 if(current_number_points == 1):
-                    array_dict[key] = [int(np.round(1.0/2 * (current_knob_lower_bound + current_knob_upper_bound)))]
+                    array_dict[key] = np.array([int(np.round(1.0/2 * (current_knob_lower_bound + current_knob_upper_bound)))])
                 else:
                     key_array = np.unique(np.round(np.linspace(current_knob_lower_bound, current_knob_upper_bound, current_number_points)))
                     key_array = key_array.astype(int) 
-                    array_dict[key] = [key_array] 
+                    array_dict[key] = key_array 
             elif(current_knob.get_value_type() == "float"):
                 current_knob_lower_bound = self.knob_and_bound_dict[key][1]
                 current_knob_upper_bound = self.knob_and_bound_dict[key][2] 
                 if(current_number_points == 1):
-                    array_dict[key] = [1.0/2 * (current_knob_upper_bound + current_knob_lower_bound)] 
+                    array_dict[key] = np.array([1.0/2 * (current_knob_upper_bound + current_knob_lower_bound)])
                 else:
                     array_dict[key] = np.linspace(current_knob_lower_bound, current_knob_upper_bound, number_points)
         return array_dict 
@@ -365,15 +365,17 @@ class Autotuner():
         If False, the new array_dict will only contain the boolean value in point_values_dict. Default True.
     
     Returns:
-        An array_dict as in get_full_space_array_dict, centered on the point specified by point_values_dict.
+        An array_dict as in get_full_space_array_dict, centered on the point specified by point_values_dict, with the given spacing, and respecting 
+        the knob bounds. 
     """
 
-    def get_array_dict_about_point(point_values_dict, point_interval_width_dict, new_array_number_points, expand_booleans = True):
+    
+    def get_array_dict_about_point(self, point_values_dict, point_interval_width_dict, new_array_number_points, expand_booleans = True):
         returned_array_dict = {}
         for key in point_values_dict:
             point_value = point_values_dict[key]
             point_interval_width = point_interval_width_dict[key] 
-            point_knob = self.knob_and_bound_dict[key][0] 
+            point_knob, point_lower_bound, point_upper_bound = self.knob_and_bound_dict[key] 
             if(point_knob.get_value_type() == "boolean"):
                 if(expand_booleans):
                     returned_array_dict[key] = np.array([False, True]) 
@@ -381,9 +383,9 @@ class Autotuner():
                     returned_array_dict[key] = np.array([point_value])
             elif(point_knob.get_value_type() == "int"):
                 point_interval_width_rounded = int(np.round(point_interval_width)) 
-                point_interval_upper_bound = point_value + point_interval_width_rounded 
-                point_interval_lower_bound = point_value - point_interval_width_rounded 
-                number_points = min(new_array_number_points, point_interval_upper_bound - point_interval_lower_bound + 1) 
+                point_interval_upper_bound = int(np.round(min(point_value + point_interval_width_rounded, point_upper_bound)))
+                point_interval_lower_bound = int(np.round(max(point_value - point_interval_width_rounded, point_lower_bound)))
+                number_points = min(new_array_number_points, point_interval_upper_bound - point_interval_lower_bound + 1)
                 if(number_points == 1):
                     returned_array_dict[key] = np.array([point_value]) 
                 else:
@@ -391,7 +393,9 @@ class Autotuner():
                     point_array = point_array.astype(int) 
                     returned_array_dict[key] = point_array 
             elif(point_knob.get_value_type() == "float"):
-                returned_array_dict[key] = np.linspace(point_value - point_interval_width, point_value + point_interval_width, new_array_number_points) 
+                point_interval_upper_bound = min(point_value + point_interval_width, point_upper_bound) 
+                point_interval_lower_bound = max(point_value - point_interval_width, point_lower_bound)
+                returned_array_dict[key] = np.linspace(point_interval_lower_bound, point_interval_upper_bound, new_array_number_points) 
         return returned_array_dict
 
 
@@ -411,8 +415,8 @@ class Autotuner():
         autoset: If true, the knobs are automatically set to the best values when the function terminates.
     Returns:
         A tuple (0, valuedict) if the set occurred correctly; valuedict contains the optimal values found for each knob, with keys the knob names.
-        A tuple (errorcode, None) if the set did not occur correctly. Error codes are all negative integers."""
-
+        A tuple (errorcode, None) if the set did not occur correctly. Error codes are all negative integers.
+    Notes: The present implementation will fail to converge if points_in_brute_force_grid is 3 or less. """
     #TODO: Consider adding support for searching less than the entire parameter space
     #TODO: Integrate the verbose and simple output flags 
     def iterated_brute_force_tune(
@@ -428,7 +432,11 @@ class Autotuner():
                     if(len(current_array) == 1):
                         current_spacing_dict[key] = 0
                     else:
-                        current_spacing_dict[key] = abs(current_array[1] - current_array[0]) 
+                        if(self.knob_and_bound_dict[key][0].get_value_type() == "boolean"):
+                            #Booleans aren't handled right by subtraction, but value is never used
+                            current_spacing_dict[key] = 0
+                        else:
+                            current_spacing_dict[key] = abs(current_array[1] - current_array[0]) 
                 current_spacing_dict_list.append(current_spacing_dict) 
             brute_force_tune_signal_and_values_tuple_list = []
             #This list contains the point spacings from the array that generated each optimal value. Needed for expanding. 
@@ -453,7 +461,7 @@ class Autotuner():
                 for signal_and_values_tuple_and_spacing in trimmed_signal_and_values_tuples_and_spacings_list:
                     values_dict = signal_and_values_tuple_and_spacing[0][1] 
                     spacing_dict = signal_and_values_tuple_and_spacing[1] 
-                    array_dict = get_array_dict_about_point(values_dict, spacing_dict, points_in_brute_force_grid)
+                    array_dict = self.get_array_dict_about_point(values_dict, spacing_dict, points_in_brute_force_grid)
                     current_array_dict_list.append(array_dict) 
         #Re-trim the last sorted list of signal and values tuples
         final_sorted_signal_and_values_tuple_list = sorted(brute_force_tune_signal_and_values_tuple_list, key = (lambda v: v[0]), reverse = True) 
