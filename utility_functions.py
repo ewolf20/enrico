@@ -146,6 +146,18 @@ def get_newest_run_dict(bc, max_retries=10):
                           **new_run_dict['parameters']}
     return new_run_dict_clean
 
+def get_newest_value(bc, key, max_tries_this_level = 6, delay_seconds = 5):
+    tries = 0
+    while (tries < max_tries_this_level):
+        newest_run_dict = get_newest_run_dict(bc)
+        if(key in newest_run_dict):
+            return newest_run_dict[key] 
+        else:
+            time.sleep(delay_seconds) 
+            tries += 1
+    return None
+        
+
 
 def time_diff_in_sec(runtime_str, trigger_time):
     """Returns time difference in seconds between trigger time and runtime.
