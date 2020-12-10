@@ -25,7 +25,8 @@ def numpyfy_MATLABarray(matlab_array):
 ycam_analyzed_var_names = ['bareNcntAverageMarqueeBoxValues',
                            'COMX', 'COMY', 'xTFinsitu_pix', 'yTFinsitu_pix',
                            'chem_potential_kHz', 'N_condensate',
-                           'xTF_afterToF', 'yTF_afterToF']
+                           'xTF_afterToF', 'yTF_afterToF',
+                           'meanGaussianRadius', 'meanFWHM']
 
 
 def getYcamAnalysis(eng, filepath,
