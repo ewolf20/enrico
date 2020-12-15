@@ -188,7 +188,6 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_i
 
 if __name__ == '__main__':
     from utility_functions import load_analysis_path
-    analysis_paths = load_analysis_path()
 
     # try/except block is a stopgap to keep things running smoothly even without analysis_config.json
     try:

@@ -79,7 +79,7 @@ def fancy_plot(x, y, fmt='', **kwargs):
     final_error_values = np.array(final_error_list)
     # Plot the most recent point with a hardcoded but distinctive black diamond symbol
     if(most_recent_xy_pair != None):
-        plt.plot(most_recent_xy_pair[0], most_recent_xy_pair[1], 'dk')
+        plt.plot(most_recent_xy_pair[0], most_recent_xy_pair[1], 'dr')
     # Plot and return the errorbar graph with the input kwargs
     return plt.errorbar(final_x_values, final_y_values, final_error_values, fmt=fmt, **kwargs)
 
@@ -145,6 +145,18 @@ def get_newest_run_dict(bc, max_retries=10):
                           'run_id': new_run_dict['id'],
                           **new_run_dict['parameters']}
     return new_run_dict_clean
+
+def get_newest_value(bc, key, max_tries_this_level = 6, delay_seconds = 5):
+    tries = 0
+    while (tries < max_tries_this_level):
+        newest_run_dict = get_newest_run_dict(bc)
+        if(key in newest_run_dict):
+            return newest_run_dict[key] 
+        else:
+            time.sleep(delay_seconds) 
+            tries += 1
+    return None
+        
 
 
 def time_diff_in_sec(runtime_str, trigger_time):
