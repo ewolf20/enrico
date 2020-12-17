@@ -241,7 +241,7 @@ if __name__ == '__main__':
         main(analysis_type, watchfolder, load_matlab=True,
              images_per_shot=1, save_images=save_images)
     except KeyboardInterrupt:
-        from log_editor import get_newest_df
+        from utility_functions import get_newest_df
         print('exporting csv... do not close window or interrupt with Ctrl-C!\n')
         df = get_newest_df(watchfolder)
         df.to_csv(os.path.join(watchfolder,
