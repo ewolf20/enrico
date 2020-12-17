@@ -52,7 +52,7 @@ def get_newest_run_dict():
     return utility_functions.get_newest_run_dict(bc)
 
 
-def check_run_image_concurrent(runtime_str, incomingfile_time, max_time_diff_in_sec=10, min_time_diff_in_sec=0):
+def check_run_image_concurrent(runtime_str, incomingfile_time, max_time_diff_in_sec=5, min_time_diff_in_sec=0):
     runtime = datetime.datetime.strptime(runtime_str, "%Y-%m-%dT%H:%M:%SZ")
     time_diff = (incomingfile_time - runtime)
     print("time diff in seconds: {time_diff}".format(
@@ -79,7 +79,7 @@ def rename_file(filename):
 def main(measurement_name=None, n_images_per_run=None, existing_directory_warning=False,
          backup_to_bec1server=True, max_idle_time=60 * 3):
 
-    refresh_time = 1  # seconds
+    refresh_time = 0.3  # seconds
 
     """Name the set of runs"""
     print('existing runs: ')
