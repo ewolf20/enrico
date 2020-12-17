@@ -9,6 +9,7 @@ import shutil
 import warnings
 import enrico_bot
 import logging
+from matlab_wrapper import load_matlab_engine
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -22,16 +23,6 @@ file_handler.setFormatter(formatter)
 # stream_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
-
-
-# loading takes a while, don't run this if testing
-def load_matlab_engine():
-    print('loading matlab engine...')
-    import matlab.engine
-    eng = matlab.engine.start_matlab()
-    print('matlab engine loaded')
-    return eng
-
 
 warnings.filterwarnings(
     "ignore", "Your application has authenticated using end user credentials")
@@ -226,8 +217,9 @@ if __name__ == '__main__':
                 print(name)
                 last_output = name
     watchfolder = measurement_directory(
-        measurement_name=suggest_run_name(newrun_input='n', appendrun_input='y', basepath=data_basepath),
-        basepath = data_basepath)
+        measurement_name=suggest_run_name(
+            newrun_input='n', appendrun_input='y', basepath=data_basepath),
+        basepath=data_basepath)
     save_images = True
     save_images_input = input('Keep images after analysis? [y/n]: '
                               )
@@ -235,7 +227,8 @@ if __name__ == '__main__':
         print('entering testing mode...')
         save_images = False
 
-    clean_notebook_path = os.path.join(os.path.dirname(__file__), 'log viewer and plotterDUPLICATEANDUSETODAY.ipynb')
+    clean_notebook_path = os.path.join(os.path.dirname(
+        __file__), 'log viewer and plotterDUPLICATEANDUSETODAY.ipynb')
     if analysis_key == 'y':
         clean_notebook_path = r'C:\Users\FermiCam2\Desktop\GitHub\enrico\log viewer and plotterDUPLICATEANDUSETODAY.ipynb'
     nb_path = os.path.join(os.path.dirname(watchfolder), 'dailynb.ipynb')
@@ -248,12 +241,10 @@ if __name__ == '__main__':
         main(analysis_type, watchfolder, load_matlab=True,
              images_per_shot=1, save_images=save_images)
     except KeyboardInterrupt:
-        from utility_functions import get_newest_df
-        
+        from log_editor import get_newest_df
         print('exporting csv... do not close window or interrupt with Ctrl-C!\n')
         df = get_newest_df(watchfolder)
-        print(df)
-        df.to_csv(os.path.join(os.path.dirname(watchfolder),
+        df.to_csv(os.path.join(watchfolder,
                                os.path.basename(watchfolder) + '_params.csv'))
         server_exportpath = os.path.join(os.path.join(bec1server_path, watchfolder),
                                          os.path.basename(watchfolder) + '_params.csv')
