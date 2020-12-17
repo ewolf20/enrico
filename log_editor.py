@@ -1,5 +1,3 @@
-breadboard_repo_path = r'D:\Fermidata1\enrico\breadboard-python-client\\'
-# breadboard_repo_path = r'C:\Users\Alex\Dropbox (MIT)\lab side projects\control software\breadboard-python-client\\'
 from utility_functions import load_breadboard_client
 bc = load_breadboard_client()
 import os
@@ -14,56 +12,12 @@ import json
 import numpy as np
 import warnings
 import matplotlib.cbook
+from utility_functions import get_newest_df
 warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
-
 
 filechooser_widget = FileChooser(os.getcwd())
 filechooser_widget.show_only_dirs = True
 table_viewer = widgets.Output(layout={'border': '1px solid black'})
-
-
-def get_newest_df(watchfolder, optional_column_names=[], existing_df=None):
-    run_ids = []
-    files = [filename for filename in os.listdir(watchfolder)]
-    files_spe = []
-    for file in files:
-        if '.spe' in file:
-            files_spe.append(file)
-        elif 'run_ids.txt' in file:
-            run_ids += run_ids_from_txt(
-                os.path.abspath(os.path.join(watchfolder, file)))
-    if existing_df is None:
-        run_ids += run_ids_from_filenames(files_spe)
-        df = bc.get_runs_df_from_ids(
-            run_ids, optional_column_names=optional_column_names)
-    else:
-        run_ids = list(set(run_ids_from_filenames(files_spe)).union(set(run_ids)).difference(
-            set(list(existing_df['run_id']))))
-        if len(run_ids) > 0:
-            df = existing_df.append(bc.get_runs_df_from_ids(run_ids,
-                                                            optional_column_names=optional_column_names),
-                                    sort=False,
-                                    ignore_index=True)
-        else:
-            df = existing_df
-
-    def custom_sort(df):
-        # takes in df and returns same df with user-interaction columns first
-        #['run_id','badshot','manual_foo1','manual_foo2', 'listboundvar1', etc.]
-        cols = list(df.columns)
-        manual_cols = []
-        for col in cols:
-            if 'manual' in col:
-                manual_cols += [col]
-        manual_cols = sorted(manual_cols)
-        user_interact_cols = ['run_id'] + ['badshot'] + manual_cols
-        for col in user_interact_cols:
-            cols.remove(col)
-        return df[user_interact_cols + cols]
-
-    df = custom_sort(df)
-    df.sort_values(by='run_id', ascending=False, inplace=True)
-    return df
 
 
 def save_image_log(event, qgrid_widget):

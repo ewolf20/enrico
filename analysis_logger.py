@@ -248,11 +248,11 @@ if __name__ == '__main__':
         main(analysis_type, watchfolder, load_matlab=True,
              images_per_shot=1, save_images=save_images)
     except KeyboardInterrupt:
-        from log_editor import get_newest_df
-        watchfolder = measurement_directory(
-            measurement_name=suggest_run_name(newrun_input='n', appendrun_input='y'))
+        from utility_functions import get_newest_df
+        
         print('exporting csv... do not close window or interrupt with Ctrl-C!\n')
         df = get_newest_df(watchfolder)
+        print(df)
         df.to_csv(os.path.join(os.path.dirname(watchfolder),
                                os.path.basename(watchfolder) + '_params.csv'))
         server_exportpath = os.path.join(os.path.join(bec1server_path, watchfolder),

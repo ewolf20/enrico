@@ -190,3 +190,50 @@ def load_analysis_path():
     with open(os.path.join(os.path.dirname(__file__), "analysis_config.json")) as my_file:
         analysis_paths = json.load(my_file)
     return analysis_paths
+
+def get_newest_df(watchfolder, optional_column_names=[], existing_df=None):
+    
+    from measurement_directory import run_ids_from_txt, run_ids_from_filenames
+    import os
+    bc = load_breadboard_client()
+    run_ids = []
+    files = [filename for filename in os.listdir(watchfolder)]
+    files_spe = []
+    for file in files:
+        if '.spe' in file:
+            files_spe.append(file)
+        elif 'run_ids.txt' in file:
+            run_ids += run_ids_from_txt(
+                os.path.abspath(os.path.join(watchfolder, file)))
+    if existing_df is None:
+        run_ids += run_ids_from_filenames(files_spe)
+        df = bc.get_runs_df_from_ids(
+            run_ids, optional_column_names=optional_column_names)
+    else:
+        run_ids = list(set(run_ids_from_filenames(files_spe)).union(set(run_ids)).difference(
+            set(list(existing_df['run_id']))))
+        if len(run_ids) > 0:
+            df = existing_df.append(bc.get_runs_df_from_ids(run_ids,
+                                                            optional_column_names=optional_column_names),
+                                    sort=False,
+                                    ignore_index=True)
+        else:
+            df = existing_df
+
+    def custom_sort(df):
+        # takes in df and returns same df with user-interaction columns first
+        #['run_id','badshot','manual_foo1','manual_foo2', 'listboundvar1', etc.]
+        cols = list(df.columns)
+        manual_cols = []
+        for col in cols:
+            if 'manual' in col:
+                manual_cols += [col]
+        manual_cols = sorted(manual_cols)
+        user_interact_cols = ['run_id'] + ['badshot'] + manual_cols
+        for col in user_interact_cols:
+            cols.remove(col)
+        return df[user_interact_cols + cols]
+
+    df = custom_sort(df)
+    df.sort_values(by='run_id', ascending=False, inplace=True)
+    return df
