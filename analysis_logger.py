@@ -136,7 +136,9 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_i
                 set(done_ids)).difference(set(unanalyzed_ids))))
             unanalyzed_ids += fresh_ids
 
-            for run_id in reversed(unanalyzed_ids):  # start from top of stack
+            if len(unanalyzed_ids) > 0:
+                run_id = unanalyzed_ids[-1] # start from top of stack
+
                 if images_per_shot == 1:
                     file = '{run_id}_0.spe'.format(run_id=run_id)
                 else:  # for triple imaging
@@ -183,7 +185,6 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_i
                         run_ids_file.write(str(popped_id[0]) + '\n')
                         logger.debug('Run_id {id} added to {file}.'.format(
                             id=str(popped_id[0]), file=os.path.join(watchfolder, 'run_ids.txt')))
-
                 print('\n')
         time.sleep(refresh_time)
 
