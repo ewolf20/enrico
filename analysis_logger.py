@@ -10,6 +10,7 @@ import warnings
 import enrico_bot
 import logging
 from matlab_wrapper import load_matlab_engine
+from math import isnan
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -104,8 +105,9 @@ def main(analysis_type, watchfolder, load_matlab=True, images_per_shot=1, save_i
         cleaned_analysis_dict = {}
         print('\n')
         for key in analyzed_var_names:
-            cleaned_analysis_dict[key] = analysis_dict[key]
-            print(key, analysis_dict[key])
+            if not isnan(analysis_dict[key]):
+                cleaned_analysis_dict[key] = analysis_dict[key]
+                print(key, analysis_dict[key])
 #             logger.debug(key, analysis_dict[key])
         print('\n')
         return cleaned_analysis_dict, settings
