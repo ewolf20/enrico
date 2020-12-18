@@ -19,7 +19,7 @@ class ImageWatchdog():
 
     def __init__(self, watchfolder=os.path.join(os.path.dirname(__file__), 'images'), new_run=True,
                  num_images_per_shot=1, refresh_time=0.3, backup_to_bec1server=True, MONTH_DIR_FMT='%Y%m',
-                 max_time_diff_in_sec=10, min_time_diff_in_sec=0, max_idle_time=60 * 3, runfolder=None):
+                 max_time_diff_in_sec=5, min_time_diff_in_sec=0, max_idle_time=60 * 3, runfolder=None):
         self.MONTH_DIR_FMT = MONTH_DIR_FMT
         self.init_logger()
         self.watchfolder = watchfolder
@@ -180,12 +180,14 @@ class ImageWatchdog():
                 new_filename = rename_file(new_filename)
                 new_filepath = os.path.join(
                     destination, new_filename)
-            if safety_check_passed and backup_to_bec1server:
+            if safety_check_passed and self.backup_to_bec1server:
                 becserver_filepath = os.path.join(
                     self.bec1serverpath, new_filepath)
                 shutil.copyfile(filepath, becserver_filepath)
                 print('copying file to ' + becserver_filepath)
-            shutil.move(filepath, new_filepath)
+            if not os.path.exists(os.path.dirname(new_filepath)):
+                os.mkdir(os.path.dirname(new_filepath))
+            shutil.move(filepath, os.path.abspath(new_filepath))
             self.logger.debug('moving {old_name} to {destination}'.format(old_name=old_filename,
                                                                           destination=new_filepath))
             image_idx += 1
@@ -193,6 +195,7 @@ class ImageWatchdog():
         return output_filenames
 
     def match_images_to_run_id(self, MAX_RETRIES=5):
+        print('here')
         def check_run_image_concurrent(self):
             max_time_diff_in_sec = self.max_time_diff_in_sec
             min_time_diff_in_sec = self.min_time_diff_in_sec
@@ -213,7 +216,7 @@ class ImageWatchdog():
         safety_check_passed = False
         while try_counter < MAX_RETRIES and (not safety_check_passed):
             try:
-                safety_check_passed = check_run_image_concurrent()
+                safety_check_passed = check_run_image_concurrent(self)
                 try_counter += 1
                 time.sleep(1)
             except:
@@ -248,7 +251,7 @@ class ImageWatchdog():
         idle_time = (datetime.datetime.now() -
                      self.incomingfile_time).total_seconds()
         if idle_time > self.max_idle_time and not self.idle_message_sent:
-            idle_message = 'Measurement {id} idle, no new images for {min}min.'.format(id=measurement_dir,
+            idle_message = 'Measurement {id} idle, no new images for {min}min.'.format(id=self.runfolder,
                                                                                        min=str(int(idle_time / 60)))
             enrico_bot.post_message(idle_message)
             print(idle_message)
