@@ -1,0 +1,6 @@
+{
+    "triple_imaging_folder": "FOLDERCONTAININGTRIPLEIMAGINGSCRIPT",
+    "dual_imaging_folder": "FOLDERCONTAININGDUALIMAGINGSCRIPT",
+    "ycam_imaging_folder": "FOLDERCONTAININGYCAMSCRIPT",
+    "data_basepath": "Z:/Fermicam 1 data (zcam)/2020"
+}
