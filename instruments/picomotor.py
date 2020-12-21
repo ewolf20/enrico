@@ -114,28 +114,23 @@ class MSerial:
         self.update_motor_history(driver_idx, motor_idx, step_size)
         
         #step in +/- MAX_STEP_SIZE increments until |remaining step_size| <= 50.
-        print('TESTING MODE ENABLED, NO COMMANDS ARE BEING SENT. UNCOMMENT OUT self.sendrecv WHEN DONE TESTING.')
         while step_size * sign > MAX_STEP_SIZE:
             active_motor_cmd = 'chl a{driver}={motor}'.format(
                 driver=str(driver_idx), motor=str(motor_idx))
-            print(active_motor_cmd)
-            # self.sendrecv(active_motor_cmd)
+            self.sendrecv(active_motor_cmd)
             move_cmd = 'rel {driver} {step} g'.format(
                 driver=str(driver_idx), step=str(sign * MAX_STEP_SIZE))
-            print(move_cmd)
-            # self.sendrecv(move_cmd)
+            self.sendrecv(move_cmd)
             step_size += -MAX_STEP_SIZE * sign
             print(str(step_size) + ' remaining')
             time.sleep(WAIT_TIME_BETWEEN_MAX_STEPS)
         if step_size * sign > 0:
             active_motor_cmd = 'chl a{driver}={motor}'.format(
                 driver=str(driver_idx), motor=str(motor_idx))
-            print(active_motor_cmd)
-            # self.sendrecv(active_motor_cmd)
+            self.sendrecv(active_motor_cmd)
             move_cmd = 'rel {driver} {step} g'.format(
                 driver=str(driver_idx), step=str(step_size))
-            print(move_cmd)
-            # self.sendrecv(move_cmd)
+            self.sendrecv(move_cmd)
 
     def status_msg(self):
         """Return the driver status byte as an integer (see manual pag. 185)."""
