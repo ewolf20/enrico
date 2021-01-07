@@ -60,7 +60,7 @@ class ImageWatchdog():
         folder = self.watchfolder
         if not os.path.exists(folder):
             raise ValueError("Folder '{}' doesn't exist".format(folder))
-        filenames = sorted([filename for filename in os.listdir(folder)])
+        filenames = sorted([filename for filename in os.listdir(folder)], reverse=True)
         paths = [os.path.join(folder, f) for f in filenames]
         return (filenames, paths)
 
