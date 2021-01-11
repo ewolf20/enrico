@@ -218,9 +218,16 @@ class AnalysisLogger():
         if self.images_per_shot == 1:
             file = os.path.join(watchfolder,
                                 '{run_id}_0.spe'.format(run_id=run_id))
+            pending_file = file
         else:  # for triple imaging
             file = [os.path.join(watchfolder, '{run_id}_{idx}.spe'.format(
                 run_id=run_id, idx=idx)) for idx in range(images_per_shot)]
+            pending_file = file[-1]
+        old_filesize = 0
+        #wait for file to finish writing to hard disk before opening in MATLAB
+        while os.path.getsize(pending_file) != old_filesize:
+            old_filesize = os.path.getsize(pending_file)
+            time.sleep(0.3)
         if self.append_mode:
             run_dict = bc._send_message(
                 'get', '/runs/' + str(run_id) + '/').json()
