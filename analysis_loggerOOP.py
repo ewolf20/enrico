@@ -16,7 +16,7 @@ class AnalysisLogger():
     breadboard run_id."""
 
     def __init__(self, analysis_mode=None, watchfolder=None, load_matlab=True,
-                 save_images=True, refresh_time=0.2, save_previous_settings=True,
+                 save_images=None, refresh_time=0.2, save_previous_settings=True,
                  append_mode=True):
         """
         Args:
@@ -48,13 +48,6 @@ class AnalysisLogger():
             self.watchfolder = self.suggest_watchfolder()
         else:
             self.watchfolder = watchfolder
-        print("\n\n Watching this folder for changes: " +
-              self.watchfolder + "\n\n")
-        self.init_logger()
-        if load_matlab:
-            self.load_matlab_engine()
-        self.load_matlab_wrapper()
-        self.load_breadboard_client()
         if save_images is None:
             save_images_input = input('Keep images after analysis? [y/n]: '
                                       )
@@ -63,6 +56,13 @@ class AnalysisLogger():
             if save_images_input == 'n':
                 print('entering testing mode...')
                 save_images = False
+        print("\n\n Watching this folder for changes: " +
+              self.watchfolder + "\n\n")
+        self.init_logger()
+        if load_matlab:
+            self.load_matlab_engine()
+        self.load_matlab_wrapper()
+        self.load_breadboard_client()
         self.save_images = save_images  # TODO delete images from BECserver
         self.refresh_time = refresh_time
         self.previous_settings = None
