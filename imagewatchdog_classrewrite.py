@@ -241,7 +241,7 @@ class ImageWatchdog():
                         files=str(output_filenames), id=str(run_id)))
             except:
                 warning = 'Failed to write {files} to breadboard run_id {id}.'.format(
-                    files=str(output_filenames), id=str(new_row_dict['run_id']))
+                    files=str(output_filenames), id=str(run_id))
                 warnings.warn(warning)
                 logger.warning(warning)
             matched_to_run_id = True
