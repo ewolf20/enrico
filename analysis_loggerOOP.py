@@ -6,6 +6,7 @@ import warnings
 import enrico_bot
 from math import isnan
 import sys
+from measurement_directory import run_ids_from_filenames
 
 
 class AnalysisLogger():
@@ -15,7 +16,8 @@ class AnalysisLogger():
     breadboard run_id."""
 
     def __init__(self, analysis_mode=None, watchfolder=None, load_matlab=True,
-                 save_images=True, refresh_time=0.2, save_previous_settings=True):
+                 save_images=True, refresh_time=0.2, save_previous_settings=True,
+                 append_mode=True):
         """
         Args:
             - analysis_mode: determines which MATLAB function to perform analysis with.
@@ -23,6 +25,7 @@ class AnalysisLogger():
             - load_matlab: can be disabled if debugging software issues, as MATLAB can take a while to load.
             - save_images: if set to False, images are discarded after analysis.
             - save_previous_settings: set to False if analysis settings, e.g. normBox, needs to be reset on each shot
+            - append_mode: set to True to check breadboard for existing analysis before analyzing
         """
 
         # ycam, zcam double imaging, zcam triple imaging, and default images_per_shot
@@ -51,6 +54,7 @@ class AnalysisLogger():
         if load_matlab:
             self.load_matlab_engine()
         self.load_matlab_wrapper()
+        self.load_breadboard_client()
         if save_images is None:
             save_images_input = input('Keep images after analysis? [y/n]: '
                                       )
@@ -64,9 +68,9 @@ class AnalysisLogger():
         self.previous_settings = None
         self.unanalyzed_ids = []
         self.done_ids = []
-        self.append_mode = True
+        self.append_mode = append_mode #check breadboard if analysis has already been done on image, e.g. if analysis is restarted
         self.save_previous_settings = save_previous_settings
-        self.bc = self.load_breadboard_client()
+        
 
     def init_logger(self):
         import logging
@@ -127,6 +131,7 @@ class AnalysisLogger():
             measurement_name=suggest_run_name(
                 newrun_input='n', appendrun_input='y', basepath=data_basepath),
             basepath=data_basepath)
+        watchfolder = os.path.abspath(watchfolder)
         return watchfolder
 
     def load_matlab_engine(self):
@@ -145,7 +150,7 @@ class AnalysisLogger():
             'y': ('getYcamAnalysis', 'ycam_analyzed_var_names'),
             'zd': ('getDualImagingAnalysis', 'dual_imaging_analyzed_var_names'),
             'zt': ('getTripleImagingAnalysis', 'triple_imaging_analyzed_var_names')}
-        matlab_func_name, analyzed_var_names = (getattr(
+        self.matlab_func_name, self.analyzed_var_names = (getattr(
             matlab_wrapper, name) for name in analysis_modes_dict[self.analysis_mode])
 
         def analysis_function(filepath, previous_settings=None):
@@ -155,16 +160,16 @@ class AnalysisLogger():
             Returns a MATLAB analysis struct mapped to a Python dict, analysis_dict, and a settings dict compatible with the MATLAB wrapper functions.
             """
             if previous_settings is None:
-                matlab_dict = matlab_func_name(self.eng, filepath)
+                matlab_dict = self.matlab_func_name(self.eng, filepath)
             else:
-                matlab_dict = matlab_func_name(self.eng, filepath, marqueeBox=previous_settings['marqueeBox'],
+                matlab_dict = self.matlab_func_name(self.eng, filepath, marqueeBox=previous_settings['marqueeBox'],
                                                normBox=previous_settings['normBox'])
             analysis_dict, settings = matlab_dict['analysis'], matlab_dict['settings']
             if not self.save_previous_settings:
                 settings = None
             return analysis_dict, settings
 
-        self.analyzed_var_names, self.analysis_function = analyzed_var_names, analysis_function
+        self.analysis_function = analysis_function
 
     def monitor_watchfolder(self):
         """
@@ -192,24 +197,23 @@ class AnalysisLogger():
         Deletes images locally after analysis if self.save_images is False.
         """
 
-        def analyze_image(self, filepath):
+        def analyze_image(filepath):
             """Helper function for cleaning analysis_dict to JSON serializable types
             before uploading to breadboard.
             """
-            logger.debug('{file} analyzing: '.format(file=filepath))
+            self.logger.debug('{file} analyzing: '.format(file=filepath))
             analysis_dict, settings = self.analysis_function(
-                abs_image_path, self.previous_settings)
+                filepath, self.previous_settings)
             cleaned_analysis_dict = {}
             print('\n')
             for key in self.analyzed_var_names:
                 if not isnan(analysis_dict[key]):
                     cleaned_analysis_dict[key] = analysis_dict[key]
                     print(key, analysis_dict[key])
-    #             logger.debug(key, analysis_dict[key])
             print('\n')
             return cleaned_analysis_dict, settings
 
-        bc = self.bc
+        bc, watchfolder = self.bc, self.watchfolder
         run_id = self.unanalyzed_ids[-1]  # start from top of stack
         if self.images_per_shot == 1:
             file = os.path.join(watchfolder,
@@ -217,13 +221,13 @@ class AnalysisLogger():
         else:  # for triple imaging
             file = [os.path.join(watchfolder, '{run_id}_{idx}.spe'.format(
                 run_id=run_id, idx=idx)) for idx in range(images_per_shot)]
-        if append_mode:
+        if self.append_mode:
             run_dict = bc._send_message(
                 'get', '/runs/' + str(run_id) + '/').json()
             if set(self.analyzed_var_names).issubset(set(run_dict['parameters'].keys())):
                 popped_id = [self.unanalyzed_ids.pop()]
                 self.done_ids += popped_id
-                continue
+                return None
         try:
             analysis_dict, self.previous_settings = analyze_image(
                 file)
@@ -292,7 +296,7 @@ class AnalysisLogger():
 
 
 if __name__ == '__main__':
-    analysis_logger = AnalysisLogger(load_matlab=True)
+    analysis_logger = AnalysisLogger()
     try:
         analysis_logger.main()
     except KeyboardInterrupt:
