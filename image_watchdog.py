@@ -1,96 +1,96 @@
-'''
-image_watchdog.py watches the images folder and attempts to match them to a breadboard entry. On match, files are moved to MM/YYMMDD/run_idx_name/.
-Otherwise, they are moved to MM/YYMMDD/run_idx_name_misplaced.
-
-A debugging log is created in the MM/YYMMDD with info to manually associate files that failed to match.
-'''
-# import latest version of breadboard from github, rather than using the pip install.
 import os
 import time
 import datetime
 import shutil
-import posixpath
 import sys
 from utility_functions import load_breadboard_client, load_bec1serverpath
 import utility_functions
 bc = load_breadboard_client()
 import warnings
-import pandas as pd
-from measurement_directory import *
+from measurement_directory import measurement_directory, todays_measurements
 import enrico_bot
 import logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
-
-file_handler = logging.FileHandler(measurement_directory(
-    measurement_name='') + 'image_watchdog_debugging.log')
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(formatter)
-
-logger.addHandler(file_handler)
-
-warnings.filterwarnings(
-    "ignore", "Your application has authenticated using end user credentials")
-warnings.filterwarnings(
-    "ignore", "Could not find appropriate MS Visual C Runtime")
 
 
-def getFileList(folder=os.getcwd()):
-    # Get a list of files in a folder
-    if not os.path.exists(folder):
-        raise ValueError("Folder '{}' doesn't exist".format(folder))
-    # Folder contents
-    filenames = [filename for filename in os.listdir(folder)]
-    # Output
-    paths = [os.path.join(folder, f) for f in filenames]
-    return (filenames, paths)
+class ImageWatchdog():
+    """ImageWatchdog watches the images folder and attempts to match them to a breadboard entry.
+    On match and after performing safety checks, files are renamed to runIdx_imageIdx.spe and moved to the MM/YYMMDD/run_idx_name/ folder. 
+    Otherwise, they renamed to timestamp.spe and are moved to MM/YYMMDD/run_idx_name_misplaced."""
 
+    def __init__(self, watchfolder=os.path.join(os.path.dirname(__file__), 'images'), new_run=True,
+                 num_images_per_shot=1, refresh_time=0.3, backup_to_bec1server=True, MONTH_DIR_FMT='%Y%m',
+                 max_time_diff_in_sec=5, min_time_diff_in_sec=0, max_idle_time=60 * 3, runfolder=None):
+        self.MONTH_DIR_FMT = MONTH_DIR_FMT
+        self.init_logger()
+        self.watchfolder = watchfolder
+        print("\n\nWatching this folder for changes: " + self.watchfolder)
+        # clears watchfolder by moving unmatched images to a temporary storage folder
+        self.clear_watchfolder()
+        if runfolder is None:
+            self.set_runfolder()
+        else:
+            self.runfolder = runfolder
+        self.misplaced_folder = self.runfolder + 'misplaced'
+        self.num_images_per_shot = num_images_per_shot
+        self.refresh_time = refresh_time
+        self.backup_to_bec1server = backup_to_bec1server
+        if self.backup_to_bec1server:
+            self.set_bec1serverpath()
+        self.previous_update_time = datetime.datetime.now()
+        self.incomingfile_time = datetime.datetime.now()
+        self.newest_run_dict = {'run_id': 0}
+        self.max_time_diff_in_sec = max_time_diff_in_sec
+        self.min_time_diff_in_sec = min_time_diff_in_sec
+        self.idle_message_sent = False
+        self.max_idle_time = max_idle_time
 
-def get_newest_run_dict():
-    return utility_functions.get_newest_run_dict(bc)
+    def init_logger(self):
+        '''A debugging log is created in the MM/YYMMDD with info to manually associate files that failed to match.'''
+        self.logger = logging.getLogger(__name__)
+        logger = self.logger
+        logger.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
+        file_handler = logging.FileHandler(measurement_directory(
+            measurement_name='') + 'image_watchdog_debugging.log')
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
+    def getFileList(self):
+        folder = self.watchfolder
+        if not os.path.exists(folder):
+            raise ValueError("Folder '{}' doesn't exist".format(folder))
+        filenames = sorted([filename for filename in os.listdir(folder)], reverse=True)
+        paths = [os.path.join(folder, f) for f in filenames]
+        return (filenames, paths)
 
-def check_run_image_concurrent(runtime_str, incomingfile_time, max_time_diff_in_sec=5, min_time_diff_in_sec=0):
-    runtime = datetime.datetime.strptime(runtime_str, "%Y-%m-%dT%H:%M:%SZ")
-    time_diff = (incomingfile_time - runtime)
-    print("time diff in seconds: {time_diff}".format(
-        time_diff=str(time_diff.total_seconds())))
-    if min_time_diff_in_sec < time_diff.total_seconds() < max_time_diff_in_sec:
-        return True
-    else:
-        return False
+    def clear_watchfolder(self):
+        filenames, _ = self.getFileList()
+        if len(filenames) > 0:
+            self.logger.debug(str(filenames) +
+                              ' found. Clearing ' + self.watchfolder)
+            today = datetime.datetime.today()
+            month = datetime.datetime.strftime(today, self.MONTH_DIR_FMT)
+            date = datetime.datetime.strftime(today, '%y%m%d')
+            time_now = datetime.datetime.strftime(today, '%H%M%S')
+            misplaced_filepath = os.path.join(os.path.join(
+                month, date), 'misplacedimages' + time_now)
+            shutil.move(self.watchfolder, misplaced_filepath)
+            self.logger.debug('moved misplaced file(s) to {path}'.format(
+                path=misplaced_filepath))
+            os.mkdir(self.watchfolder)
 
+    def set_runfolder(self):
+        print('existing runs: ')
+        print(todays_measurements())
+        self.runfolder = measurement_directory(measurement_name=None,
+                                               warn=False)
+        print('Moving images to ' + self.runfolder + '.\n')
 
-def rename_file(filename):
-    # appends a timestamp to files with redudant names to avoid overwriting
-    bare_name = filename[0:len(filename) - 4]
-    today = datetime.datetime.today()
-    time_now = datetime.datetime.strftime(today, '%H%M%S')
-    extension = filename[-4:len(filename)]
-    rename = '{bare_name}_{time_now}{extension}'.format(bare_name=bare_name,
-                                                        time_now=time_now,
-                                                        extension=extension)
-    warnings.warn(filename + ' exists here already. Saving as ' + rename)
-    return rename
-
-
-def main(measurement_name=None, n_images_per_run=None, existing_directory_warning=False,
-         backup_to_bec1server=True, max_idle_time=60 * 3):
-
-    refresh_time = 0.3  # seconds
-
-    """Name the set of runs"""
-    print('existing runs: ')
-    print(todays_measurements())
-    measurement_dir = measurement_directory(
-        measurement_name=measurement_name, warn=existing_directory_warning)
-
-    if backup_to_bec1server:
-        BEC1_path = load_bec1serverpath()
-        # create directories on server
-        measurement_backup_path = os.path.join(BEC1_path, measurement_dir)
+    def set_bec1serverpath(self):
+        self.bec1serverpath = load_bec1serverpath()
+        measurement_backup_path = os.path.join(
+            self.bec1serverpath, self.runfolder)
         dummy_path = measurement_backup_path
         dummy_paths = []
         subfolder_depth = 3  # monthdir/daydir/rundir
@@ -99,164 +99,180 @@ def main(measurement_name=None, n_images_per_run=None, existing_directory_warnin
             dummy_path = os.path.dirname(dummy_path)
         for path in reversed(dummy_paths):
             if not os.path.exists(path):
-                print('creating {path}'.format(path=path))
+                print('creating {path} on bec1server.'.format(path=path))
                 os.mkdir(path)
 
-    # feed the program your watchfolder
-    watchfolder = os.path.join(os.getcwd(), 'images')
+    def monitor_watchfolder(self):
+        filenames, _ = self.getFileList()
+        if len(filenames) >= self.num_images_per_shot:
+            self.new_imagenames = filenames[0:self.num_images_per_shot]
+            new_images_bool = True
+            self.incomingfile_time = datetime.datetime.today()
+            self.previous_update_time = datetime.datetime.now()
+        else:
+            new_images_bool = False
+        return new_images_bool
 
-    if n_images_per_run is None:
-        n_images_per_run = int(
-            input('How many images arrive per run? (e.g. 3 for triple imaging sequence) '))
-    print("\n\nWatching this folder for changes: " + watchfolder +
-          ". Moving images to " + measurement_dir + "\n\n")
+    def update_run_dict(self, MAX_RETRIES=10):
+        try_counter = 0
+        success = False
+        while try_counter < MAX_RETRIES:
+            try_counter += 1
+            if success:
+                break
+            else:
+                try:
+                    if try_counter > 1:
+                        print('Retrying to get newest breadboard entry. Tries: {n}'.format(
+                            n=str(try_counter)))
+                    new_run_dict = utility_functions.get_newest_run_dict(bc)
+                    new_id = new_run_dict['run_id']
+                    if self.newest_run_dict['run_id'] < new_id:
+                        print('new id: {id}'.format(id=str(new_id)))
+                        print('list bound variables: {run_dict}'.format(run_dict={key: new_run_dict[key]
+                                                                                  for key in new_run_dict['ListBoundVariables']}))
+                        self.logger.debug(
+                            'new run_id: ' + str(new_run_dict['run_id']) + '. runtime: ' + str(new_run_dict['runtime']))
+                        self.newest_run_dict = new_run_dict
+                    success = True
+                except:
+                    self.logger.error(sys.exc_info()[1])
 
-    names, _ = getFileList(watchfolder)
-    if len(names) > 0:
-        move_misplaced_images()
-    old_run_id = None
-    old_list_bound_variables = None
-    warned = False
-    displayed_run_id = None
-    previous_update_time = datetime.datetime.now()
-    idle_message_sent = False
+    def move_images(self, safety_check_passed):
+        """Renames images according to run_id or timestamp (if safety_check passes or fails) and moves 
+        them to the appropriate folder. Returns a list of the renamed image filenames."""
 
-    # Main Loop
-    while True:
-        # Get a list of all the images in the folder
-        names, paths = getFileList(watchfolder)
-        new_names = sorted(names)
+        def rename_file(filename):
+            # appends a timestamp to files with redudant names to avoid overwriting
+            bare_name = filename[0:len(filename) - 4]
+            today = datetime.datetime.today()
+            time_now = datetime.datetime.strftime(today, '%H%M%S')
+            extension = filename[-4:len(filename)]
+            rename = '{bare_name}_{time_now}{extension}'.format(bare_name=bare_name,
+                                                                time_now=time_now,
+                                                                extension=extension)
+            warnings.warn(
+                filename + ' exists here already. Saving as ' + rename)
+            return rename
 
-        # listen to breadboard server for new run_id
-        try:
-            new_row_dict = get_newest_run_dict()
-        except:
-            logger.error(sys.exc_info()[1])
-            continue
+        output_filenames = []
+        image_idx = 0
+        run_id = self.newest_run_dict['run_id']
+        for filename in self.new_imagenames:
+            # prevent python from corrupting file, wait for writing to disk to finish
+            filepath = os.path.join(self.watchfolder, filename)
+            old_filesize = 0
+            while os.path.getsize(filepath) != old_filesize:
+                old_filesize = os.path.getsize(filepath)
+                time.sleep(0.2)
+            # rename images according to their associated run_id
+            old_filename = filename
+            if safety_check_passed:
+                new_filename = str(run_id) + '_' + \
+                    str(image_idx) + '.spe'
+                destination = self.runfolder
+            else:
+                new_filename = old_filename
+                destination = self.misplaced_folder
+            new_filepath = os.path.join(
+                destination, new_filename)
+            if os.path.exists(new_filepath):
+                new_filename = rename_file(new_filename)
+                new_filepath = os.path.join(
+                    destination, new_filename)
+            if safety_check_passed and self.backup_to_bec1server:
+                becserver_filepath = os.path.join(
+                    self.bec1serverpath, new_filepath)
+                shutil.copyfile(filepath, becserver_filepath)
+                print('copying file to ' + becserver_filepath)
+            if not os.path.exists(os.path.dirname(new_filepath)):
+                os.mkdir(os.path.dirname(new_filepath))
+            shutil.move(filepath, os.path.abspath(new_filepath))
+            self.logger.debug('moving {old_name} to {destination}'.format(old_name=old_filename,
+                                                                          destination=new_filepath))
+            image_idx += 1
+            output_filenames.append(new_filename)
+        return output_filenames
 
-        if new_row_dict['run_id'] != displayed_run_id:
-            logger.debug('list bound variables: {run_dict}'.format(run_dict={key: new_row_dict[key]
-                                                                             for key in new_row_dict['ListBoundVariables']}))
-            logger.debug(
-                'new run_id: ' + str(new_row_dict['run_id']) + '. runtime: ' + str(new_row_dict['runtime']))
-            displayed_run_id = new_row_dict['run_id']
+    def match_images_to_run_id(self, MAX_RETRIES=5):
+        print('here')
+        def check_run_image_concurrent(self):
+            max_time_diff_in_sec = self.max_time_diff_in_sec
+            min_time_diff_in_sec = self.min_time_diff_in_sec
+            runtime_str = self.newest_run_dict['runtime']
+            incomingfile_time = self.incomingfile_time
+            runtime = datetime.datetime.strptime(
+                runtime_str, "%Y-%m-%dT%H:%M:%SZ")
+            time_diff = (incomingfile_time - runtime)
+            self.logger.debug("time diff in seconds: {time_diff}".format(
+                time_diff=str(time_diff.total_seconds())))
+            if min_time_diff_in_sec < time_diff.total_seconds() < max_time_diff_in_sec:
+                return True
+            else:
+                self.update_run_dict()
+                return False
 
-        # check if new images has come in
-        if len(new_names) > 0:
-            incomingfile_time = datetime.datetime.today()
-            if len(new_names) == n_images_per_run:
-                previous_update_time = datetime.datetime.now()
-                print('\n')
-                # safety check that image came within 10 seconds of last Cicero upload.
-                if not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time):
-                    try:
-                        retry_count, max_retries = 0, 5
-                        while not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time) and retry_count < max_retries:
-                            retry_count += 1
-                            new_row_dict = get_newest_run_dict()
-                            time.sleep(1)
-
-                        if not check_run_image_concurrent(new_row_dict['runtime'], incomingfile_time):
-                            warning_message = 'Incoming image time and latest Breadboard runtime differ by too much. Check run_id {id} manually later.'.format(
-                                id=str(new_row_dict['run_id']))
-                            warning = warnings.warn(warning_message)
-                            logger.warning(warning_message)
-                            safety_check_passed = False
-                        else:
-                            safety_check_passed = True
-                    except:
-                        safety_check_passed = False
+        try_counter = 0
+        safety_check_passed = False
+        while try_counter < MAX_RETRIES and (not safety_check_passed):
+            try:
+                safety_check_passed = check_run_image_concurrent(self)
+                try_counter += 1
+                time.sleep(1)
+            except:
+                pass
+        output_filenames = self.move_images(safety_check_passed)
+        if not safety_check_passed:
+            warning_message = 'Incoming image time and latest Breadboard runtime differ by too much. Check run_id {id} manually later.'.format(
+                id=str(self.newest_run_dict['run_id']))
+            warning = warnings.warn(warning_message)
+            self.logger.warning(warning_message)
+            matched_to_run_id = False
+        else:
+            # write to breadboard
+            run_id = self.newest_run_dict['run_id']
+            try:
+                resp = bc.append_images_to_run(run_id, output_filenames)
+                bc.add_measurement_name_to_run(run_id, self.runfolder)
+                if resp.status_code != 200:
+                    self.logger.warning('Upload error: ' + resp.text)
                 else:
-                    safety_check_passed = True
-                if not safety_check_passed:
-                    destination = measurement_dir + '_misplaced'
-                    if not os.path.exists(destination):
-                        os.mkdir(destination)
-                else:
-                    destination = measurement_dir
+                    self.logger.debug('Uploaded filenames {files} to breadboard run_id {id}.'.format(
+                        files=str(output_filenames), id=str(run_id)))
+            except:
+                warning = 'Failed to write {files} to breadboard run_id {id}.'.format(
+                    files=str(output_filenames), id=str(run_id))
+                warnings.warn(warning)
+                logger.warning(warning)
+            matched_to_run_id = True
+        return matched_to_run_id
 
-                output_filenames = []
-                image_idx = 0
-                run_id = new_row_dict['run_id']
-                for filename in new_names[0:n_images_per_run]:
-                    # prevent python from corrupting file, wait for writing to disk to finish
-                    old_filesize = 0
-                    while os.path.getsize(os.path.join(r'images\\', filename)) != old_filesize:
-                        old_filesize = os.path.getsize(
-                            os.path.join(r'images\\', filename))
-                        time.sleep(0.2)
-                    # rename images according to their associated run_id
-                    old_filename = filename
-                    if safety_check_passed:
-                        new_filename = str(run_id) + '_' + \
-                            str(image_idx) + '.spe'
-                    else:
-                        new_filename = old_filename
-                    new_filepath = os.path.join(
-                        destination, new_filename)  # relative local path in enrico folder
-                    if os.path.exists(new_filepath):
-                        new_filename = rename_file(new_filename)
-                        new_filepath = os.path.join(
-                            destination, new_filename)
-                    if safety_check_passed and backup_to_bec1server:
-                        shutil.copyfile(os.path.join(r'images\\', old_filename),
-                                        os.path.join(BEC1_path, new_filepath))
-                        print('copying file to ' +
-                              os.path.join(BEC1_path, new_filepath))
-                    shutil.move(os.path.join(
-                        r'images\\', old_filename), new_filepath)
-
-                    logger.debug('moving {old_name} to {destination}'.format(old_name=old_filename,
-                                                                             destination=new_filepath))
-                    image_idx += 1
-                    output_filenames.append(new_filename)
-
-                # Write to Breadboard
-                if safety_check_passed:
-                    old_run_id = new_row_dict['run_id']
-                    try:
-                        resp = bc.append_images_to_run(
-                            new_row_dict['run_id'], output_filenames)
-                        bc.add_measurement_name_to_run(
-                            new_row_dict['run_id'], measurement_dir)
-                        if resp.status_code != 200:
-                            logger.warning('Upload error: ' + resp.text)
-                        else:
-                            logger.debug('Uploaded filenames {files} to breadboard run_id {id}.'.format(
-                                files=str(output_filenames), id=str(new_row_dict['run_id'])))
-                    except:
-                        warning = 'Failed to write {files} to breadboard run_id {id}.'.format(
-                            files=str(output_filenames), id=str(new_row_dict['run_id']))
-                        warnings.warn(warning)
-                        logger.warning(warning)
-                        pass
-        # send a slack message after idling for max_idle_time
+    def check_idle_time(self):
         idle_time = (datetime.datetime.now() -
-                     previous_update_time).total_seconds()
-        if idle_time > max_idle_time and not idle_message_sent:
-            idle_message = 'Measurement {id} idle, no new images for {min}min.'.format(id=measurement_dir,
+                     self.incomingfile_time).total_seconds()
+        if idle_time > self.max_idle_time and not self.idle_message_sent:
+            idle_message = 'Measurement {id} idle, no new images for {min}min.'.format(id=self.runfolder,
                                                                                        min=str(int(idle_time / 60)))
             enrico_bot.post_message(idle_message)
             print(idle_message)
-            idle_message_sent = True
-        elif idle_time < max_idle_time and idle_message_sent:
-            idle_message_sent = False  # reset message status if image taking is resumed
-        # Wait before checking again
-        time.sleep(refresh_time)
+            self.idle_message_sent = True
+        elif idle_time < self.max_idle_time and self.idle_message_sent:
+            self.idle_message_sent = False  # reset message status if image taking is resumed
+
+    def main(self):
+        while True:
+            try:
+                self.update_run_dict()  # fetch newest run info from breadboard
+                self.check_idle_time()  # fire Slack message if experiment is idling
+                new_images_bool = self.monitor_watchfolder()
+                if new_images_bool:
+                    self.match_images_to_run_id()  # this method contains all the safety checks and logic
+                    # for matching run_id to images and writing image and run names to breadboard.
+                time.sleep(self.refresh_time)
+            except KeyboardInterrupt:
+                break
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3:
-        measurement_name = sys.argv[1]
-        n_images_per_run = int(sys.argv[2])
-    elif len(sys.argv) == 1:
-        measurement_name, n_images_per_run = None, None
-    else:
-        raise ValueError(
-            'If using command line inputs, input both measurement name and n_images_per_run. E.g. python image_watchdog.py run1_foo 3')
-
-    try:
-        main(measurement_name=measurement_name,
-             n_images_per_run=n_images_per_run)
-    except KeyboardInterrupt:  # often the error is not being able to complete the API request, so this may need modification
-        pass
+    watchdog = ImageWatchdog()
+    watchdog.main()
