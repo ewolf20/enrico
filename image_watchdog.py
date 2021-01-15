@@ -14,7 +14,7 @@ import logging
 
 class ImageWatchdog():
     """ImageWatchdog watches the images folder and attempts to match them to a breadboard entry.
-    On match and after performing safety checks, files are renamed to runIdx_imageIdx.spe and moved to the MM/YYMMDD/run_idx_name/ folder. 
+    On match and after performing safety checks, files are renamed to runIdx_imageIdx.spe and moved to the MM/YYMMDD/run_idx_name/ folder.
     Otherwise, they renamed to timestamp.spe and are moved to MM/YYMMDD/run_idx_name_misplaced."""
 
     def __init__(self, watchfolder=os.path.join(os.path.dirname(__file__), 'images'), new_run=True,
@@ -60,7 +60,8 @@ class ImageWatchdog():
         folder = self.watchfolder
         if not os.path.exists(folder):
             raise ValueError("Folder '{}' doesn't exist".format(folder))
-        filenames = sorted([filename for filename in os.listdir(folder)], reverse=True)
+        filenames = sorted(
+            [filename for filename in os.listdir(folder)], reverse=True)
         paths = [os.path.join(folder, f) for f in filenames]
         return (filenames, paths)
 
@@ -139,7 +140,7 @@ class ImageWatchdog():
                     self.logger.error(sys.exc_info()[1])
 
     def move_images(self, safety_check_passed):
-        """Renames images according to run_id or timestamp (if safety_check passes or fails) and moves 
+        """Renames images according to run_id or timestamp (if safety_check passes or fails) and moves
         them to the appropriate folder. Returns a list of the renamed image filenames."""
 
         def rename_file(filename):
@@ -196,6 +197,7 @@ class ImageWatchdog():
 
     def match_images_to_run_id(self, MAX_RETRIES=5):
         print('here')
+
         def check_run_image_concurrent(self):
             max_time_diff_in_sec = self.max_time_diff_in_sec
             min_time_diff_in_sec = self.min_time_diff_in_sec
@@ -271,6 +273,9 @@ class ImageWatchdog():
                 time.sleep(self.refresh_time)
             except KeyboardInterrupt:
                 break
+            except:
+                self.logger.error('Error: {}. {}, line: {}'.format(
+                    sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2].tb_lineno))
 
 
 if __name__ == "__main__":
