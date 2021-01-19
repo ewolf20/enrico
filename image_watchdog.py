@@ -279,12 +279,13 @@ class ImageWatchdog():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 0:
+    if len(sys.argv) == 1:
         watchdog = ImageWatchdog()
         watchdog.main()
-    elif len(sys.argv) == 2:
+    elif len(sys.argv) == 3:
         runfolder = sys.argv[1]
         n_images = int(sys.argv[2])
+        print(runfolder, n_images)
         watchdog = ImageWatchdog(
             num_images_per_shot=n_images, runfolder=runfolder)
         watchdog.main()

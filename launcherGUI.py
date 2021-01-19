@@ -123,7 +123,7 @@ class MainWindow(QMainWindow):
             self.ImageWatchdogProcess.start("python", [
                                             'image_watchdog.py', self.runfolder_path, str(analysis_modes[analysisMode_str])])
             self.AnalysisProcess.start(
-                "python", ['analysis_loggerOOP.py', analysis_shorthand[analysisMode_str], str(self.discard_box.isChecked())])
+                "python", ['analysis_loggerOOP.py', analysis_shorthand[analysisMode_str], self.runfolder_path, str(not self.discard_box.isChecked())])
 
         else:
             self.ImageWatchdogProcess.kill()

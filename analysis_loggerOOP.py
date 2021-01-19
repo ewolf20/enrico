@@ -216,6 +216,7 @@ class AnalysisLogger():
 
         bc, watchfolder = self.bc, self.watchfolder
         run_id = self.unanalyzed_ids[-1]  # start from top of stack
+        print(self.unanalyzed_ids)
         if self.images_per_shot == 1:
             file = os.path.join(watchfolder,
                                 '{run_id}_0.spe'.format(run_id=run_id))
@@ -254,6 +255,7 @@ class AnalysisLogger():
             logger.warning('Upload error: ' + resp.text)
 
         if not self.save_images:  # delete images and add run_ids to .txt file after analysis if in testing mode
+            print('Not saving images.')
             if isinstance(file, str):
                 filepath = os.path.join(self.watchfolder, file)
                 os.remove(filepath)
@@ -280,7 +282,7 @@ class AnalysisLogger():
             self.monitor_watchfolder()
             if len(self.unanalyzed_ids) > 0:
                 self.analyze_newest_images()
-                self.dump()
+                # self.dump()
             time.sleep(self.refresh_time)
 
     def export_params_csv(self):
@@ -309,14 +311,15 @@ class AnalysisLogger():
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 0:
+    if len(sys.argv) == 1:
         analysis_logger = AnalysisLogger()
-    elif len(sys.argv) == 3:
+    elif len(sys.argv) == 4:
         analysis_mode, watchfolder, save_images = (sys.argv[1], sys.argv[2], bool(sys.argv[3])
                                                    )
         analysis_logger = AnalysisLogger(analysis_mode=analysis_mode,
                                          watchfolder=watchfolder,
                                          save_images=save_images)
+        print('analysis initialized')
     try:
         analysis_logger.main()
     except KeyboardInterrupt:
