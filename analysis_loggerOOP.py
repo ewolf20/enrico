@@ -6,6 +6,7 @@ import warnings
 import enrico_bot
 from math import isnan
 import sys
+import pickle
 from measurement_directory import run_ids_from_filenames
 
 
@@ -68,9 +69,9 @@ class AnalysisLogger():
         self.previous_settings = None
         self.unanalyzed_ids = []
         self.done_ids = []
-        self.append_mode = append_mode #check breadboard if analysis has already been done on image, e.g. if analysis is restarted
+        # check breadboard if analysis has already been done on image, e.g. if analysis is restarted
+        self.append_mode = append_mode
         self.save_previous_settings = save_previous_settings
-        
 
     def init_logger(self):
         import logging
@@ -163,7 +164,7 @@ class AnalysisLogger():
                 matlab_dict = self.matlab_func_name(self.eng, filepath)
             else:
                 matlab_dict = self.matlab_func_name(self.eng, filepath, marqueeBox=previous_settings['marqueeBox'],
-                                               normBox=previous_settings['normBox'])
+                                                    normBox=previous_settings['normBox'])
             analysis_dict, settings = matlab_dict['analysis'], matlab_dict['settings']
             if not self.save_previous_settings:
                 settings = None
@@ -224,7 +225,7 @@ class AnalysisLogger():
                 run_id=run_id, idx=idx)) for idx in range(images_per_shot)]
             pending_file = file[-1]
         old_filesize = 0
-        #wait for file to finish writing to hard disk before opening in MATLAB
+        # wait for file to finish writing to hard disk before opening in MATLAB
         while os.path.getsize(pending_file) != old_filesize:
             old_filesize = os.path.getsize(pending_file)
             time.sleep(0.3)
@@ -270,11 +271,16 @@ class AnalysisLogger():
                     id=str(popped_id[0]), file=os.path.join(watchfolder, 'run_ids.txt')))
         print('\n')
 
+    def dump(self):
+        with open(os.path.join(self.watchfolder, 'analysisLogger.pkl'), 'wb') as file:
+            pickle.dump(self, file)
+
     def main(self):
         while True:
             self.monitor_watchfolder()
             if len(self.unanalyzed_ids) > 0:
                 self.analyze_newest_images()
+                self.dump()
             time.sleep(self.refresh_time)
 
     def export_params_csv(self):
@@ -303,7 +309,14 @@ class AnalysisLogger():
 
 
 if __name__ == '__main__':
-    analysis_logger = AnalysisLogger()
+    if len(sys.argv) == 0:
+        analysis_logger = AnalysisLogger()
+    elif len(sys.argv) == 3:
+        analysis_mode, watchfolder, save_images = (sys.argv[1], sys.argv[2], bool(sys.argv[3])
+                                                   )
+        analysis_logger = AnalysisLogger(analysis_mode=analysis_mode,
+                                         watchfolder=watchfolder,
+                                         save_images=save_images)
     try:
         analysis_logger.main()
     except KeyboardInterrupt:

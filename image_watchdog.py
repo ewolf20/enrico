@@ -17,7 +17,7 @@ class ImageWatchdog():
     On match and after performing safety checks, files are renamed to runIdx_imageIdx.spe and moved to the MM/YYMMDD/run_idx_name/ folder.
     Otherwise, they renamed to timestamp.spe and are moved to MM/YYMMDD/run_idx_name_misplaced."""
 
-    def __init__(self, watchfolder=os.path.join(os.path.dirname(__file__), 'images'), new_run=True,
+    def __init__(self, watchfolder=os.path.join(os.path.dirname(__file__), 'images'),
                  num_images_per_shot=1, refresh_time=0.3, backup_to_bec1server=True, MONTH_DIR_FMT='%Y%m',
                  max_time_diff_in_sec=5, min_time_diff_in_sec=0, max_idle_time=60 * 3, runfolder=None):
         self.MONTH_DIR_FMT = MONTH_DIR_FMT
@@ -279,5 +279,12 @@ class ImageWatchdog():
 
 
 if __name__ == "__main__":
-    watchdog = ImageWatchdog()
-    watchdog.main()
+    if len(sys.argv) == 0:
+        watchdog = ImageWatchdog()
+        watchdog.main()
+    elif len(sys.argv) == 2:
+        runfolder = sys.argv[1]
+        n_images = int(sys.argv[2])
+        watchdog = ImageWatchdog(
+            num_images_per_shot=n_images, runfolder=runfolder)
+        watchdog.main()
