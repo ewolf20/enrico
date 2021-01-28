@@ -2,27 +2,20 @@
 Library to read and control the ion pump
 """
 
-from serial import Serial
+import serial
+import os
 import time
 import datetime
-from collections import OrderedDict
-from random import randint
-import matplotlib.pyplot as plt
-import numpy as np
-import matplotlib.dates as mdates
-import warnings
-import matplotlib.cbook
-warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
 
 DEFAULT_LOG_FILE_STRING = "Ion_Pump_Log" 
 MPC_DEFAULT_ADDRESS = 5
 SPC_DEFAULT_ADDRESS = 1
 
 
-def get_key(my_dict, val):
-    for key, value in my_dict.items():
-        if val == value:
-            return key
+# def get_key(my_dict, val):
+#     for key, value in my_dict.items():
+#         if val == value:
+#             return key
 
 
 class IonPump:
@@ -47,10 +40,10 @@ class IonPump:
                 history_file_string = None, log_history = True, overwrite_history = False):
         #Default port settings for ion pumps
         PORT_SETTINGS = {'baudrate':9600, 'bytesize':serial.EIGHTBITS, 'parity':serial.PARITY_NONE, 'stopbits':serial.STOPBITS_ONE, 'timeout':1}
-        self.serial_port = Serial(COM_PORT, **PORT_SETTINGS)
+        self.serial_port = serial.Serial(COM_PORT, **PORT_SETTINGS)
         self.pump_label = pump_label 
         self.echo = echo
-        self.wait = wait
+        self.wait_time = wait_time
         self.sendwidget = sendwidget
         self.recvwidget = recvwidget
         self.log_history = log_history
@@ -97,10 +90,10 @@ class IonPump:
             checksum_string = get_checksum_string(to_be_checked_string)
             command = command + checksum_string + "\r"
         return_value = self.serial_port.write(bytes(command, encoding = "ASCII"))
-        self.flush()
+        self.serial_port.flush()
         if(self.echo):
             self.log(command, widget = self.sendwidget)
-        time.sleep(self.wait)
+        time.sleep(self.wait_time)
         return return_value
 
     """Convenience method which turns on the ion pump"""
@@ -115,71 +108,56 @@ class IonPump:
     """Convenience method which measures the ion pump current, pressure, and voltage"""
 
     def measure_all(self, supply_index = 1):
-        if(self.pump_label == "spc"):
-            data_field = ''
-        elif(self.pump_label == "mpc")
-            data_field = str(supply_index) + ' '
-        address_string = self.get_address_string() 
-        CURRENT_MEASURE_CODE = '0A'
-        current_measure_command_initial =  = ' ' + address_string + ' ' + CURRENT_MEASURE_CODE + " " + data_field
-        current_measure_command_checksum = get_checksum_string(current_measure_command_initial)
-        current_measure_command = '~' + current_measure_command_initial + current_measure_command_checksum + "\r"
-        PRESSURE_MEASURE_CODE = '0B'
-        pressure_measure_command_initial =  = ' ' + address_string + ' ' + PRESSURE_MEASURE_CODE + " " + data_field
-        pressure_measure_command_checksum = get_checksum_string(pressure_measure_command_initial)
-        pressure_measure_command = '~' + pressure_measure_command_initial + pressure_measure_command_checksum + "\r"
-        VOLTAGE_MEASURE_COMMAND = '0C'
-        voltage_measure_command_initial =  = ' ' + address_string + ' ' + VOLTAGE_MEASURE_CODE + " " + data_field
-        voltage_measure_command_checksum = get_checksum_string(voltage_measure_command_initial)
-        voltage_measure_command = '~' + voltage_measure_command_initial + voltage_measure_command_checksum + "\r"
-        current_bytes_list = self.send_and_get_response(current_measure_command)
-        pressure_bytes_list = self.send_and_get_response(pressure_measure_command)
-        voltage_bytes_list = self.send_and_get_response(voltage_measure_command)
+        current_value = self.measure_current(supply_index = supply_index) 
+        pressure_value = self.measure_pressure(supply_index = supply_index) 
+        voltage_value = self.measure_voltage(supply_index = supply_index) 
+        return (current_value, pressure_value, voltage_value)
 
     def measure_current(self, supply_index = 1):
         if(self.pump_label == "spc"):
             data_field = ''
-        elif(self.pump_label == "mpc")
+        elif(self.pump_label == "mpc"):
             data_field = str(supply_index) + ' '
         address_string = self.get_address_string() 
         CURRENT_MEASURE_CODE = '0A'
-        current_measure_command_initial =  = ' ' + address_string + ' ' + CURRENT_MEASURE_CODE + " " + data_field
-        current_measure_command_checksum = get_checksum_string(current_measure_command_initial)
+        current_measure_command_initial =  ' ' + address_string + ' ' + CURRENT_MEASURE_CODE + " " + data_field
+        current_measure_command_checksum = self.get_checksum_string(current_measure_command_initial)
         current_measure_command = '~' + current_measure_command_initial + current_measure_command_checksum + "\r"
         current_bytes_list = self.send_and_get_response(current_measure_command)
-        current_value = parse_current_bytes(current_bytes_list)
+        current_value = self.parse_current_bytes(current_bytes_list)
         return current_value 
 
-    def measure_pressure(self, supply_index = 1)
+    def measure_pressure(self, supply_index = 1):
         if(self.pump_label == "spc"):
             data_field = ''
-        elif(self.pump_label == "mpc")
+        elif(self.pump_label == "mpc"):
             data_field = str(supply_index) + ' '
         address_string = self.get_address_string() 
         PRESSURE_MEASURE_CODE = '0B'
-        pressure_measure_command_initial =  = ' ' + address_string + ' ' + PRESSURE_MEASURE_CODE + " " + data_field
-        pressure_measure_command_checksum = get_checksum_string(pressure_measure_command_initial)
+        pressure_measure_command_initial =  ' ' + address_string + ' ' + PRESSURE_MEASURE_CODE + " " + data_field
+        pressure_measure_command_checksum = self.get_checksum_string(pressure_measure_command_initial)
         pressure_measure_command = '~' + pressure_measure_command_initial + pressure_measure_command_checksum + "\r"
         pressure_bytes_list = self.send_and_get_response(pressure_measure_command)
-        pressure_value = parse_pressure_bytes(pressure_bytes_list) 
+        pressure_value = self.parse_pressure_bytes(pressure_bytes_list) 
         return pressure_value 
 
     def measure_voltage(self, supply_index = 1):
         if(self.pump_label == "spc"):
             data_field = ''
-        elif(self.pump_label == "mpc")
+        elif(self.pump_label == "mpc"):
             data_field = str(supply_index) + ' '
         address_string = self.get_address_string() 
-        VOLTAGE_MEASURE_COMMAND = '0C'
-        voltage_measure_command_initial =  = ' ' + address_string + ' ' + VOLTAGE_MEASURE_CODE + " " + data_field
-        voltage_measure_command_checksum = get_checksum_string(voltage_measure_command_initial)
+        VOLTAGE_MEASURE_CODE = '0C'
+        voltage_measure_command_initial =  ' ' + address_string + ' ' + VOLTAGE_MEASURE_CODE + " " + data_field
+        voltage_measure_command_checksum = self.get_checksum_string(voltage_measure_command_initial)
         voltage_measure_command = '~' + voltage_measure_command_initial + voltage_measure_command_checksum + "\r"
-        voltage_value = parse_voltage_bytes(voltage_bytes_list) 
+        voltage_bytes_list = self.send_and_get_response(voltage_measure_command)
+        voltage_value = self.parse_voltage_bytes(voltage_bytes_list) 
         return voltage_value 
 
-
+    @staticmethod
     def parse_current_bytes(current_bytes_list):
-        current_string = current_bytes_list.decode("ASCII")
+        current_string = current_bytes_list[0].decode("ASCII")
         status_code = current_string[3:5]
         if(status_code == "OK"):
             current_value_string = current_string[9:15]
@@ -188,7 +166,7 @@ class IonPump:
         else:
             return -1
         
-
+    @staticmethod
     def parse_pressure_bytes(pressure_bytes_list):
         pressure_string = pressure_bytes_list[0].decode("ASCII")
         status_code = pressure_string[3:5]
@@ -199,7 +177,7 @@ class IonPump:
         else:
             return -1
 
-
+    @staticmethod
     def parse_voltage_bytes(voltage_bytes_list):
         voltage_string = voltage_bytes_list[0].decode("ASCII")
         status_code = voltage_string[3:5]
@@ -215,7 +193,7 @@ class IonPump:
     def get_address_string(self):
         address_string = hex(self.address)[2:]
         address_string = address_string.upper() 
-        if(self.adress < 16):
+        if(self.address < 16):
             address_string = "0" + address_string 
         return address_string 
 
