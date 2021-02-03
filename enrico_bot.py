@@ -8,7 +8,6 @@ with open(os.path.join(os.path.dirname(__file__),'API_config_private/fermi1bot_c
 
 client = slack.WebClient(token=token)
 
-
 def post_message(message):
     try:
         response = client.chat_postMessage(

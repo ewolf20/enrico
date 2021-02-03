@@ -2,6 +2,7 @@ from collections import OrderedDict
 import datetime
 import os
 import sys
+import pandas as pd
 main_path = os.path.abspath(os.path.join(__file__, '../..'))
 sys.path.insert(0, main_path)
 from utility_functions import load_breadboard_client, get_newest_run_dict, time_diff_in_sec
@@ -11,13 +12,14 @@ import numpy as np
 
 
 class StatusMonitor:
-    def __init__(self, backlog_max=30, warning_interval_in_min=10, read_run_time_offset=3, max_time_diff_tolerance=15):
+    def __init__(self, backlog_max=30, warning_interval_in_min=10, read_run_time_offset=3, max_time_diff_tolerance=15, local_log_filename = "DEFAULT.csv"):
         self.bc = load_breadboard_client()
         self.backlog_max = backlog_max
         self.backlog = OrderedDict()
         self.last_warning = None
         self.warning_interval_in_min = warning_interval_in_min
         self.read_run_time_offset = read_run_time_offset
+        self.local_log_filename = local_log_filename
         # seconds, to avoid off-by-one run_id uploads to breadboard
         self.max_time_diff_tolerance = max_time_diff_tolerance
 
@@ -34,6 +36,65 @@ class StatusMonitor:
         self.backlog[time_now] = values_dict
         print('Logged {value} at {time_now}'.format(value=str(values_dict),
                                                     time_now=str(time_now)))
+
+    """Logs the data contained in a values_dict locally
+
+    Given a dictionary of values, logs them locally to a .csv file in a form which is loadable by 
+    pandas.load_csv.
+
+    Parameters:
+
+        values_dict: A dictionary of values, either of scalar or iterable type. If iterable, all values 
+        must be of same length.
+
+        overwrite: If True, the local log is overwritten with only the new values in valuesdict. Otherwise, 
+        the values are appended to the end of the existing file.
+
+        reload: If True, and overwrite is False, reloads the existing dataframe in the .csv log file 
+        and appends the new dataframe to that. Useful when writing values_dicts which do not all have the 
+        same keys, or in which the keys are in different orders. 
+
+    Remarks: 
+    
+        Because the entire .csv must be reloaded if reload is True, this will become prohibitively 
+        slow for large .csv log files. Typical code using this logging should be structured so that 
+        reload can be False.
+
+        Will crash if reload is True and the dataframe cannot be loaded. This is intentional.
+
+        Indices will not be saved to the log file in any case. The entries will be in order.
+    """
+
+    def log_values_locally(self, values_dict, overwrite = False, reload_df = False):
+        log_exists = os.path.exists(self.local_log_filename)
+        #Cast scalar dict to dict of length 1 lists
+        for key in values_dict:
+            try:
+                foo = len(values_dict[key]) 
+            except TypeError:
+                values_dict[key] = [values_dict[key]]
+        #Write the current dictionary to a df
+        new_df = pd.DataFrame(values_dict)
+        if(overwrite):
+            new_df.to_csv(self.local_log_filename, mode = 'w', index = False)
+        else:
+            try:
+                if(reload_df and log_exists):
+                    existing_df = pd.read_csv(self.local_log_filename)
+                    concatenated_df = pd.concat([existing_df, new_df], ignore_index = True)
+                    concatenated_df.to_csv(self.local_log_filename, mode = 'w', index = False) 
+            except pd.errors.EmptyDataError:
+                log_exists = False
+            if(log_exists):
+                if(not reload_df):
+                    new_df.to_csv(self.local_log_filename, mode = 'a', index = False, header = False)
+            else:
+                new_df.to_csv(self.local_log_filename, mode = 'w', header = True, index = False)
+
+
+
+
+
 
     def warn_on_slack(self, warning_message):
         print(warning_message)
